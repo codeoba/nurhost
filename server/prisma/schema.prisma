@@ -1,0 +1,130 @@
+// Prisma Schema for NurHost - Cloud Storage & Media Vault Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String
+  name          String?
+  plan          String         @default("free") // free, pro, business
+  storageUsed   BigInt         @default(0)
+  storageLimit  BigInt         @default(16106127360) // 15 GB default for free tier
+  is2FAEnabled  Boolean        @default(false)
+  twoFASecret   String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  files         File[]
+  folders       Folder[]
+  shareLinks    ShareLink[]
+  downloadJobs  DownloadJob[]
+  extractionJobs ExtractionJob[]
+  activityLogs  ActivityLog[]
+}
+
+model Folder {
+  id          String         @id @default(uuid())
+  name        String
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentId    String?
+  parent      Folder?        @relation("FolderToFolder", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Folder[]       @relation("FolderToFolder")
+  files       File[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model File {
+  id               String          @id @default(uuid())
+  userId           String
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folderId         String?
+  folder           Folder?         @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  originalFilename String
+  cleanFilename    String
+  size             BigInt
+  mimeType         String
+  storagePath      String
+  hash             String?         // SHA-256 for deduplication check
+  isStarred        Boolean         @default(false)
+  isTrash          Boolean         @default(false)
+  trashedAt        DateTime?
+  isTextEditable   Boolean         @default(false)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  shareLinks       ShareLink[]
+  versions         FileVersion[]
+  extractionJobs   ExtractionJob[]
+}
+
+model ShareLink {
+  id           String    @id @default(uuid())
+  fileId       String
+  file         File      @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token        String    @unique // e.g. xJ9kLm2
+  passwordHash String?
+  expiresAt    DateTime?
+  maxDownloads Int?
+  downloadCount Int      @default(0)
+  createdAt    DateTime  @default(now())
+}
+
+model DownloadJob {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceType  String   // "url" | "torrent"
+  source      String   // URL or Magnet Link
+  status      String   @default("pending") // pending, downloading, completed, failed
+  progress    Float    @default(0)
+  fileId      String?
+  errorMessage String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ExtractionJob {
+  id                  String    @id @default(uuid())
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  archiveFileId       String
+  archiveFile         File      @relation(fields: [archiveFileId], references: [id], onDelete: Cascade)
+  status              String    @default("pending") // pending, extracting, completed, failed
+  progress            Float     @default(0)
+  password            String?
+  destinationFolderId String?
+  filesSelected       String?   // JSON string of selected files
+  errorMessage        String?
+  createdAt           DateTime  @default(now())
+  completedAt         DateTime?
+}
+
+model FileVersion {
+  id            String   @id @default(uuid())
+  fileId        String
+  file          File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  versionNumber Int
+  storagePath   String
+  size          BigInt
+  changeSummary String?
+  createdAt     DateTime @default(now())
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String   // upload, download, delete, share, edit
+  details   String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+}
