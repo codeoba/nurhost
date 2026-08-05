@@ -1,23 +1,25 @@
 // Prisma Schema for NurHost - Cloud Storage & Media Vault Platform
+// Supports: MySQL (Production/aaPanel) and SQLite (Local Dev)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
-  passwordHash  String
-  name          String?
-  plan          String         @default("free") // free, pro, business
+  id            String         @id @default(uuid()) @db.VarChar(36)
+  email         String         @unique @db.VarChar(255)
+  passwordHash  String         @db.VarChar(255)
+  name          String?        @db.VarChar(100)
+  plan          String         @default("free") @db.VarChar(20)
   storageUsed   BigInt         @default(0)
-  storageLimit  BigInt         @default(16106127360) // 15 GB default for free tier
+  storageLimit  BigInt         @default(16106127360)
   is2FAEnabled  Boolean        @default(false)
-  twoFASecret   String?
+  twoFASecret   String?        @db.VarChar(255)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   files         File[]
@@ -29,11 +31,11 @@ model User {
 }
 
 model Folder {
-  id          String         @id @default(uuid())
-  name        String
-  userId      String
+  id          String         @id @default(uuid()) @db.VarChar(36)
+  name        String         @db.VarChar(255)
+  userId      String         @db.VarChar(36)
   user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parentId    String?
+  parentId    String?        @db.VarChar(36)
   parent      Folder?        @relation("FolderToFolder", fields: [parentId], references: [id], onDelete: Cascade)
   children    Folder[]       @relation("FolderToFolder")
   files       File[]
@@ -42,17 +44,17 @@ model Folder {
 }
 
 model File {
-  id               String          @id @default(uuid())
-  userId           String
+  id               String          @id @default(uuid()) @db.VarChar(36)
+  userId           String          @db.VarChar(36)
   user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  folderId         String?
+  folderId         String?         @db.VarChar(36)
   folder           Folder?         @relation(fields: [folderId], references: [id], onDelete: SetNull)
-  originalFilename String
-  cleanFilename    String
+  originalFilename String          @db.VarChar(500)
+  cleanFilename    String          @db.VarChar(500)
   size             BigInt
-  mimeType         String
-  storagePath      String
-  hash             String?         // SHA-256 for deduplication check
+  mimeType         String          @db.VarChar(200)
+  storagePath      String          @db.VarChar(1000)
+  hash             String?         @db.VarChar(64)
   isStarred        Boolean         @default(false)
   isTrash          Boolean         @default(false)
   trashedAt        DateTime?
@@ -65,66 +67,66 @@ model File {
 }
 
 model ShareLink {
-  id           String    @id @default(uuid())
-  fileId       String
-  file         File      @relation(fields: [fileId], references: [id], onDelete: Cascade)
-  userId       String
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  token        String    @unique // e.g. xJ9kLm2
-  passwordHash String?
-  expiresAt    DateTime?
-  maxDownloads Int?
-  downloadCount Int      @default(0)
-  createdAt    DateTime  @default(now())
+  id            String    @id @default(uuid()) @db.VarChar(36)
+  fileId        String    @db.VarChar(36)
+  file          File      @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  userId        String    @db.VarChar(36)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token         String    @unique @db.VarChar(100)
+  passwordHash  String?   @db.VarChar(255)
+  expiresAt     DateTime?
+  maxDownloads  Int?
+  downloadCount Int       @default(0)
+  createdAt     DateTime  @default(now())
 }
 
 model DownloadJob {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sourceType  String   // "url" | "torrent"
-  source      String   // URL or Magnet Link
-  status      String   @default("pending") // pending, downloading, completed, failed
-  progress    Float    @default(0)
-  fileId      String?
-  errorMessage String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(uuid()) @db.VarChar(36)
+  userId       String   @db.VarChar(36)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceType   String   @db.VarChar(20)
+  source       String   @db.Text
+  status       String   @default("pending") @db.VarChar(20)
+  progress     Float    @default(0)
+  fileId       String?  @db.VarChar(36)
+  errorMessage String?  @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model ExtractionJob {
-  id                  String    @id @default(uuid())
-  userId              String
+  id                  String    @id @default(uuid()) @db.VarChar(36)
+  userId              String    @db.VarChar(36)
   user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  archiveFileId       String
+  archiveFileId       String    @db.VarChar(36)
   archiveFile         File      @relation(fields: [archiveFileId], references: [id], onDelete: Cascade)
-  status              String    @default("pending") // pending, extracting, completed, failed
+  status              String    @default("pending") @db.VarChar(20)
   progress            Float     @default(0)
-  password            String?
-  destinationFolderId String?
-  filesSelected       String?   // JSON string of selected files
-  errorMessage        String?
+  password            String?   @db.VarChar(255)
+  destinationFolderId String?   @db.VarChar(36)
+  filesSelected       String?   @db.Text
+  errorMessage        String?   @db.Text
   createdAt           DateTime  @default(now())
   completedAt         DateTime?
 }
 
 model FileVersion {
-  id            String   @id @default(uuid())
-  fileId        String
+  id            String   @id @default(uuid()) @db.VarChar(36)
+  fileId        String   @db.VarChar(36)
   file          File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
   versionNumber Int
-  storagePath   String
+  storagePath   String   @db.VarChar(1000)
   size          BigInt
-  changeSummary String?
+  changeSummary String?  @db.VarChar(500)
   createdAt     DateTime @default(now())
 }
 
 model ActivityLog {
-  id        String   @id @default(uuid())
-  userId    String
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  userId    String   @db.VarChar(36)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  action    String   // upload, download, delete, share, edit
-  details   String?
-  ipAddress String?
+  action    String   @db.VarChar(50)
+  details   String?  @db.Text
+  ipAddress String?  @db.VarChar(45)
   createdAt DateTime @default(now())
 }
