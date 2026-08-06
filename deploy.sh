@@ -28,7 +28,7 @@ echo -e "${GREEN}🚀 NurHost Deployment — nurhost.mdandu.com${NC}"
 echo "============================================"
 
 APP_DIR="/www/wwwroot/nurhost"
-NODE_PORT=5001
+NODE_PORT=5050
 
 # --- Step 1: Check Node.js ---
 echo -e "\n${YELLOW}[1/7] Checking Node.js...${NC}"
@@ -60,7 +60,7 @@ echo -e "${GREEN}✅ Directories zimeundwa${NC}"
 # --- Step 4: Write .env automatically ---
 echo -e "\n${YELLOW}[4/7] Kuandika .env file...${NC}"
 cat > $APP_DIR/server/.env << 'ENV_EOF'
-PORT=5001
+PORT=5050
 NODE_ENV=production
 STORAGE_PROVIDER=local
 DATABASE_URL="mysql://sql_nurhost_mdandu_com:b31b1b7540a87@127.0.0.1:3306/sql_nurhost_mdandu_com"
@@ -117,7 +117,7 @@ echo -e "${GREEN}║  🎉 NurHost imewekwa kikamilifu!         ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "  🌐 Website  : ${BLUE}http://nurhost.mdandu.com${NC}"
-echo -e "  ⚙️  API Health: ${BLUE}http://127.0.0.1:5001/api/health${NC}"
+echo -e "  ⚙️  API Health: ${BLUE}http://127.0.0.1:5050/api/health${NC}"
 echo -e "  📊 PM2 logs : ${YELLOW}pm2 logs nurhost-backend${NC}"
 echo ""
 echo -e "${YELLOW}━━ Hatua Inayofuata ━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -139,7 +139,7 @@ server {
     }
 
     location /api/ {
-        proxy_pass http://127.0.0.1:5001;
+        proxy_pass http://127.0.0.1:5050;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
