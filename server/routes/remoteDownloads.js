@@ -43,6 +43,75 @@ function getMimeType(filename) {
   return map[ext] || 'application/octet-stream';
 }
 
+function downloadUrlWithRedirects(targetUrl, targetPath, maxRedirects = 10) {
+  return new Promise((resolve, reject) => {
+    function fetchUrl(currentUrl, redirectCount) {
+      if (redirectCount > maxRedirects) {
+        return reject(new Error('Too many HTTP redirects'));
+      }
+
+      let parsed;
+      try {
+        parsed = new URL(currentUrl);
+      } catch (e) {
+        return reject(new Error('Invalid URL format'));
+      }
+
+      const client = parsed.protocol === 'https:' ? https : http;
+      const req = client.get(currentUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': '*/*'
+        }
+      }, (res) => {
+        if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+          const redirectUrl = new URL(res.headers.location, currentUrl).href;
+          return fetchUrl(redirectUrl, redirectCount + 1);
+        }
+
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          return reject(new Error(`HTTP Status Code ${res.statusCode}`));
+        }
+
+        let dispositionFilename = '';
+        const cd = res.headers['content-disposition'];
+        if (cd) {
+          const match = cd.match(/filename\*?=['"]?(?:UTF-8'';?)?([^;'"\r\n]+)['"]?/i);
+          if (match && match[1]) {
+            dispositionFilename = decodeURIComponent(match[1].trim());
+          }
+        }
+
+        const fileStream = fs.createWriteStream(targetPath);
+        res.pipe(fileStream);
+
+        fileStream.on('finish', () => {
+          fileStream.close(() => {
+            const size = fs.existsSync(targetPath) ? fs.statSync(targetPath).size : 0;
+            resolve({
+              size,
+              dispositionFilename,
+              contentType: res.headers['content-type']
+            });
+          });
+        });
+
+        fileStream.on('error', (err) => {
+          fs.unlink(targetPath, () => {});
+          reject(err);
+        });
+      });
+
+      req.on('error', (err) => {
+        fs.unlink(targetPath, () => {});
+        reject(err);
+      });
+    }
+
+    fetchUrl(targetUrl, 0);
+  });
+}
+
 // 1. POST /api/downloads/url - Direct HTTP/HTTPS Remote URL Download
 router.post('/url', async (req, res) => {
   try {
@@ -55,14 +124,17 @@ router.post('/url', async (req, res) => {
     if (!parsedName) {
       try {
         const u = new URL(url);
-        parsedName = path.basename(u.pathname) || `downloaded_${Date.now()}`;
-      } catch (e) {
-        parsedName = `file_${Date.now()}`;
-      }
+        parsedName = path.basename(u.pathname) || '';
+        if (parsedName.includes('?')) {
+          parsedName = parsedName.split('?')[0];
+        }
+      } catch (e) {}
+    }
+    if (!parsedName || parsedName === '/' || parsedName === '.') {
+      parsedName = `download_${Date.now()}`;
     }
 
-    const originalFilename = parsedName;
-    const cleanFilename = originalFilename.replace(/[^\w\.\-\s\(\)\[\]]/gi, '_').trim() || `file_${Date.now()}`;
+    const cleanFilename = parsedName.replace(/[^\w\.\-\s\(\)\[\]]/gi, '_').trim() || `file_${Date.now()}`;
     const uploadsDir = path.join(__dirname, '../uploads/user_demo-user-123');
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
@@ -71,40 +143,38 @@ router.post('/url', async (req, res) => {
     const timestampedName = `${Date.now()}_${cleanFilename}`;
     const targetPath = path.join(uploadsDir, timestampedName);
 
-    // Stream download file from remote URL directly to disk
-    const client = url.startsWith('https://') ? https : http;
-    const fileStream = fs.createWriteStream(targetPath);
+    // Download file with redirect-following Promise stream
+    const downloadResult = await downloadUrlWithRedirects(url, targetPath);
 
-    client.get(url, (response) => {
-      response.pipe(fileStream);
-      fileStream.on('finish', () => {
-        fileStream.close();
-      });
-    }).on('error', (err) => {
-      console.error('Remote download error:', err);
-      fs.writeFileSync(targetPath, `Remote URL File Payload for ${originalFilename}`);
-    });
+    let finalName = cleanFilename;
+    if (downloadResult.dispositionFilename) {
+      finalName = downloadResult.dispositionFilename.replace(/[^\w\.\-\s\(\)\[\]]/gi, '_').trim();
+    }
 
-    const stats = fs.existsSync(targetPath) ? fs.statSync(targetPath) : { size: 1048576 };
+    const realSizeBytes = downloadResult.size;
+    const sizeFormatted = realSizeBytes >= 1024 * 1024
+      ? `${(realSizeBytes / (1024 * 1024)).toFixed(1)} MB`
+      : `${(realSizeBytes / 1024).toFixed(1)} KB`;
+
     const fileId = `file_url_${Date.now()}`;
     const relativePath = `/api/files/uploads-serve/user_demo-user-123/${encodeURIComponent(timestampedName)}`;
-    const mimeType = getMimeType(cleanFilename);
 
-    const isZip = /\.(zip|rar|7z|iso)$/i.test(originalFilename);
-    const isImg = /\.(jpg|jpeg|png|gif|webp)$/i.test(originalFilename);
-    const isVid = /\.(mp4|mkv|avi)$/i.test(originalFilename);
-    const isAud = /\.(mp3|wav|ogg)$/i.test(originalFilename);
+    const isZip = /\.(zip|rar|7z|iso|tar|gz)$/i.test(finalName);
+    const isImg = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(finalName);
+    const isVid = /\.(mp4|mkv|avi|webm|mov)$/i.test(finalName);
+    const isAud = /\.(mp3|wav|ogg|flac|m4a)$/i.test(finalName);
     const fileType = isZip ? 'archive' : isImg ? 'image' : isVid ? 'video' : isAud ? 'audio' : 'document';
+    const mimeType = downloadResult.contentType || getMimeType(finalName);
 
     const file = {
       id: fileId,
-      name: originalFilename,
-      originalFilename,
+      name: finalName,
+      originalFilename: finalName,
       cleanFilename: timestampedName,
       type: fileType,
       mimeType,
-      size: stats.size || 1048576,
-      sizeFormatted: `${((stats.size || 1048576) / (1024 * 1024)).toFixed(2)} MB`,
+      size: realSizeBytes,
+      sizeFormatted,
       storagePath: relativePath,
       url: relativePath,
       folderId: null,
@@ -117,12 +187,12 @@ router.post('/url', async (req, res) => {
 
     return res.json({
       success: true,
-      message: `Remote URL file "${originalFilename}" downloaded successfully!`,
+      message: `Faili "${finalName}" limepakuliwa kikamilifu (${sizeFormatted})!`,
       file
     });
   } catch (error) {
     console.error('URL Download Exception:', error);
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, error: `Imeshindwa kupakua kutoka URL: ${error.message}` });
   }
 });
 
