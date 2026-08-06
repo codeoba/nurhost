@@ -79,6 +79,7 @@ router.get("/", (req, res) => {
       const isZip = /\.(zip|rar|7z|tar|gz|bz2)$/i.test(originalName);
       const isCode = /\.(txt|htaccess|env|conf|ini|json|js|jsx|ts|tsx|html|css|py|php|sql|sh|md|xml|yml|yaml)$/i.test(originalName) || originalName.includes('htaccess') || originalName.includes('env');
       const type = isAudio ? 'audio' : isVideo ? 'video' : isImg ? 'image' : isZip ? 'archive' : isCode ? 'code' : 'document';
+      const mimeType = isImg ? 'image/jpeg' : isVideo ? 'video/mp4' : isAudio ? 'audio/mpeg' : 'application/octet-stream';
 
       return {
         id: `srv-file-${i}-${Math.round(stats.mtimeMs)}`,
@@ -86,11 +87,11 @@ router.get("/", (req, res) => {
         originalFilename: originalName,
         cleanFilename: fname,
         type,
-        mimeType: 'application/octet-stream',
+        mimeType,
         size: stats.size,
         sizeFormatted: `${(stats.size / (1024 * 1024)).toFixed(1)} MB`,
         storagePath: `uploads/user_demo-user-123/${fname}`,
-        url: `uploads/user_demo-user-123/${fname}`,
+        url: `/uploads/user_demo-user-123/${fname}`,
         folderId: null,
         isStarred: false,
         isShared: false,

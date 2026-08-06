@@ -39,16 +39,16 @@ export function detectFileType(filename = '', mimeType = '') {
   return 'document';
 }
 
-export function resolveFileUrl(url, filename = '') {
+export function resolveFileUrl(url, cleanFilename = '', name = '') {
   if (url && url !== '#' && url !== 'undefined') {
     if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
       return url;
     }
     return url.startsWith('/') ? url : `/${url}`;
   }
-  if (filename) {
-    const clean = filename.startsWith('17') ? filename : filename;
-    return `/uploads/user_demo-user-123/${clean}`;
+  const target = cleanFilename || name;
+  if (target) {
+    return target.startsWith('/') ? target : `/uploads/user_demo-user-123/${target}`;
   }
   return '';
 }

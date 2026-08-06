@@ -111,10 +111,9 @@ export default function FileGrid({
                 }}>
                   {(file.type === 'image' || detectFileType(file.name, file.mimeType) === 'image') ? (
                     <img 
-                      src={resolveFileUrl(file.url, file.cleanFilename || file.name)} 
+                      src={resolveFileUrl(file.url, file.cleanFilename, file.name)} 
                       alt={file.name} 
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                      onError={(e) => { e.target.style.display = 'none'; }}
                     />
                   ) : file.type === 'video' && file.poster ? (
                     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
