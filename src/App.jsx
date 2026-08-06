@@ -186,13 +186,23 @@ export default function App() {
   // Handlers
   const handlePreviewFile = (file) => {
     const name = (file.name || file.originalFilename || '').toLowerCase();
+
+    // 1. Strict guard: if filename ends with zip/rar/7z/tar/iso, ALWAYS route to ZipUnzipModal!
+    if (/\.(zip|rar|7z|tar|gz|bz2|iso)$/i.test(name) || name.endsWith('.zip')) {
+      setActiveZipFile(file);
+      return;
+    }
+
     const detected = detectFileType(name, file.mimeType);
 
-    if (detected === 'audio') setPreviewAudioFile(file);
-    else if (detected === 'video') setPreviewVideoFile(file);
-    else if (detected === 'image') setPreviewImageFile(file);
-    else if (detected === 'archive' && name.endsWith('.zip')) {
+    if (detected === 'archive') {
       setActiveZipFile(file);
+    } else if (detected === 'audio') {
+      setPreviewAudioFile(file);
+    } else if (detected === 'video') {
+      setPreviewVideoFile(file);
+    } else if (detected === 'image') {
+      setPreviewImageFile(file);
     } else if (detected === 'code') {
       setPreviewCodeFile(file);
     } else {
