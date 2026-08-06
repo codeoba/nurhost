@@ -16,8 +16,10 @@ import {
   Copy,
   Check
 } from 'lucide-react';
+import { resolveFileUrl } from '../api';
 
 export default function AudioPlayerModal({ file, onClose, onShare, onToast }) {
+  const audioSrc = resolveFileUrl(file.url, file.cleanFilename, file.name);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(165); // default fallback ~2:45
@@ -87,7 +89,7 @@ export default function AudioPlayerModal({ file, onClose, onShare, onToast }) {
       >
         <audio
           ref={audioRef}
-          src={file.url}
+          src={audioSrc}
           onTimeUpdate={handleTimeUpdate}
           onEnded={() => setIsPlaying(false)}
         />
@@ -316,7 +318,7 @@ export default function AudioPlayerModal({ file, onClose, onShare, onToast }) {
             </button>
 
             <a
-              href={file.url}
+              href={audioSrc}
               download={file.name}
               target="_blank"
               rel="noreferrer"

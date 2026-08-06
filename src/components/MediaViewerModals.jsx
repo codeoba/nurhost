@@ -3,6 +3,7 @@ import { X, Download, Share2, Film, Image as ImageIcon, Code, Copy, Check } from
 import { resolveFileUrl } from '../api';
 
 export function VideoPlayerModal({ file, onClose, onShare, onToast }) {
+  const videoSrc = resolveFileUrl(file.url, file.cleanFilename, file.name);
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div 
@@ -26,7 +27,7 @@ export function VideoPlayerModal({ file, onClose, onShare, onToast }) {
 
         <div style={{ background: '#000000', width: '100%', maxHeight: '480px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <video
-            src={file.url}
+            src={videoSrc}
             controls
             autoPlay
             poster={file.poster}
@@ -42,7 +43,7 @@ export function VideoPlayerModal({ file, onClose, onShare, onToast }) {
             <button onClick={() => { onClose(); onShare(file); }} className="btn btn-secondary" style={{ fontSize: '13px' }}>
               <Share2 size={16} /> Share Video
             </button>
-            <a href={file.url} download={file.name} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ fontSize: '13px', textDecoration: 'none' }}>
+            <a href={videoSrc} download={file.name} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ fontSize: '13px', textDecoration: 'none' }}>
               <Download size={16} /> Download
             </a>
           </div>
