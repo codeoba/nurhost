@@ -52,10 +52,10 @@ fi
 echo -e "${GREEN}✅ Code ipo tayari${NC}"
 
 # --- Step 3: Create uploads directory ---
-echo -e "\n${YELLOW}[3/7] Kuunda directories...${NC}"
+echo -e "\n${YELLOW}[3/7] Kuunda directories na kuweka permissions...${NC}"
 mkdir -p $APP_DIR/server/uploads
-chmod 755 $APP_DIR/server/uploads
-echo -e "${GREEN}✅ Directories zimeundwa${NC}"
+chmod -R 777 $APP_DIR/server/uploads
+echo -e "${GREEN}✅ Directories zimeundwa na kupewa ruhusa${NC}"
 
 # --- Step 4: Write .env automatically ---
 echo -e "\n${YELLOW}[4/7] Kuandika .env file...${NC}"

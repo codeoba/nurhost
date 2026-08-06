@@ -13,8 +13,9 @@ app.use(cors({ origin: "*" }));
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
-// Static uploads route (for local storage fallback)
+// Static uploads route (accessible via /uploads and /api/uploads)
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/api/uploads", express.static(path.join(__dirname, "uploads")));
 
 // API Routes
 const filesRouter = require("./routes/files");

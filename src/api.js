@@ -48,7 +48,7 @@ export function resolveFileUrl(url, cleanFilename = '', name = '') {
   }
   const target = cleanFilename || name;
   if (target) {
-    return target.startsWith('/') ? target : `/uploads/user_demo-user-123/${target}`;
+    return target.startsWith('/') ? target : `/api/uploads/user_demo-user-123/${target}`;
   }
   return '';
 }

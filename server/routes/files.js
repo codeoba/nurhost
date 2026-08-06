@@ -90,8 +90,8 @@ router.get("/", (req, res) => {
         mimeType,
         size: stats.size,
         sizeFormatted: `${(stats.size / (1024 * 1024)).toFixed(1)} MB`,
-        storagePath: `uploads/user_demo-user-123/${fname}`,
-        url: `/uploads/user_demo-user-123/${fname}`,
+        storagePath: `/api/uploads/user_demo-user-123/${fname}`,
+        url: `/api/uploads/user_demo-user-123/${fname}`,
         folderId: null,
         isStarred: false,
         isShared: false,
@@ -167,7 +167,7 @@ router.post("/upload", (req, res) => {
       const { cleanFilename, originalFilename } = sanitizeFilename(originalname);
 
       const fileId = `file_${Date.now()}`;
-      const relativeStoragePath = `uploads/user_demo-user-123/${filename}`;
+      const relativeStoragePath = `/api/uploads/user_demo-user-123/${filename}`;
 
       const fileMeta = {
         id: fileId,
@@ -177,6 +177,7 @@ router.post("/upload", (req, res) => {
         sizeBytes: size,
         size: `${(size / (1024 * 1024)).toFixed(2)} MB`,
         storagePath: relativeStoragePath,
+        url: relativeStoragePath,
         createdAt: new Date().toISOString(),
       };
 
