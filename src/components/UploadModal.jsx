@@ -46,28 +46,27 @@ export default function UploadModal({ onClose, onUploadComplete }) {
     for (let i = 0; i < filesArray.length; i++) {
       const file = filesArray[i];
       
-      // Show progress animation while uploading
-      setUploadingFiles(prev => prev.map((u, idx) =>
-        idx === i ? { ...u, progress: 30 } : u
-      ));
-
       try {
-        const res = await uploadFileToBackend(file);
-        
-        setUploadingFiles(prev => prev.map((u, idx) =>
-          idx === i ? { ...u, progress: 100, status: 'completed' } : u
-        ));
+        const res = await uploadFileToBackend(file, (percent) => {
+          setUploadingFiles(prev => prev.map((u, idx) =>
+            idx === i ? { ...u, progress: Math.min(99, percent) } : u
+          ));
+        });
 
         if (res.success && res.file) {
+          setUploadingFiles(prev => prev.map((u, idx) =>
+            idx === i ? { ...u, progress: 100, status: 'completed' } : u
+          ));
+
           completedFiles.push({
             id: res.file.id || `file-${Date.now()}-${i}`,
             name: res.file.originalFilename || file.name,
             type: file.type.startsWith('audio') ? 'audio'
                 : file.type.startsWith('video') ? 'video'
                 : file.type.startsWith('image') ? 'image'
-                : file.name.endsWith('.zip') || file.name.endsWith('.rar') ? 'archive'
+                : file.name.endsWith('.zip') || file.name.endsWith('.rar') || file.name.endsWith('.7z') ? 'archive'
                 : 'document',
-            mimeType: file.type,
+            mimeType: file.type || 'application/octet-stream',
             size: file.size,
             sizeFormatted: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
             url: res.file.storagePath || '#',
@@ -78,10 +77,14 @@ export default function UploadModal({ onClose, onUploadComplete }) {
             updatedAt: new Date().toISOString(),
             createdAt: new Date().toISOString()
           });
+        } else {
+          setUploadingFiles(prev => prev.map((u, idx) =>
+            idx === i ? { ...u, status: 'error', errorMsg: res.error || 'Imeshindwa kupakia faili' } : u
+          ));
         }
       } catch (err) {
         setUploadingFiles(prev => prev.map((u, idx) =>
-          idx === i ? { ...u, status: 'error', progress: 0 } : u
+          idx === i ? { ...u, status: 'error', errorMsg: err.message } : u
         ));
       }
     }
@@ -328,17 +331,25 @@ export default function UploadModal({ onClose, onUploadComplete }) {
                         </div>
                         {file.status === 'completed' ? (
                           <CheckCircle2 size={18} color="var(--accent-emerald)" />
+                        ) : file.status === 'error' ? (
+                          <AlertCircle size={18} color="#ef4444" />
                         ) : (
                           <span style={{ fontSize: '12px', color: 'var(--accent-primary)', fontWeight: '700' }}>{file.progress}%</span>
                         )}
                       </div>
+
+                      {file.status === 'error' && (
+                        <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px' }}>
+                          ❌ {file.errorMsg || 'Imeshindwa kupakia'}
+                        </p>
+                      )}
 
                       <div style={{ height: '6px', width: '100%', background: 'var(--border-color)', borderRadius: '3px', overflow: 'hidden' }}>
                         <div
                           style={{
                             height: '100%',
                             width: `${file.progress}%`,
-                            background: 'linear-gradient(90deg, var(--accent-primary), var(--accent-cyan))',
+                            background: file.status === 'error' ? '#ef4444' : 'linear-gradient(90deg, var(--accent-primary), var(--accent-cyan))',
                             transition: 'width 0.2s ease'
                           }}
                         />

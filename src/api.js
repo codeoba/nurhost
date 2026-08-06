@@ -20,20 +20,48 @@ export async function fetchFilesAndFolders() {
   }
 }
 
-export async function uploadFileToBackend(file) {
-  try {
+export function uploadFileToBackend(file, onProgress) {
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch(`${API_BASE_URL}/files/upload`, {
-      method: "POST",
-      body: formData,
-    });
-    return await res.json();
-  } catch (error) {
-    console.error("API error uploading file:", error);
-    return { success: false, error: error.message };
-  }
+    if (xhr.upload && onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          onProgress(percent);
+        }
+      };
+    }
+
+    xhr.onload = () => {
+      let data = {};
+      try {
+        data = JSON.parse(xhr.responseText);
+      } catch (err) {
+        data = {};
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300 && data.success) {
+        resolve(data);
+      } else {
+        const errorMsg = data.error || (xhr.status === 413 ? "Faili ni kubwa mno (Max 500MB)." : `Server error (${xhr.status})`);
+        resolve({ success: false, error: errorMsg });
+      }
+    };
+
+    xhr.onerror = () => {
+      resolve({ success: false, error: "Hitilafu ya mtandao wakati wa ku-upload." });
+    };
+
+    xhr.ontimeout = () => {
+      resolve({ success: false, error: "Upload imechukua muda mrefu (Timeout)." });
+    };
+
+    xhr.open("POST", `${API_BASE_URL}/files/upload`);
+    xhr.send(formData);
+  });
 }
 
 export async function createShareLink(fileId, options = {}) {
