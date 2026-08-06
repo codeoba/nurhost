@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { resolveFileUrl } from '../api';
+import { resolveFileUrl, detectFileType } from '../api';
 import { 
   Music, 
   Video, 
@@ -109,11 +109,12 @@ export default function FileGrid({
                   position: 'relative',
                   overflow: 'hidden'
                 }}>
-                  {file.type === 'image' && file.url && file.url !== '#' ? (
+                  {(file.type === 'image' || detectFileType(file.name, file.mimeType) === 'image') ? (
                     <img 
-                      src={resolveFileUrl(file.url)} 
+                      src={resolveFileUrl(file.url, file.cleanFilename || file.name)} 
                       alt={file.name} 
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                      onError={(e) => { e.target.style.display = 'none'; }}
                     />
                   ) : file.type === 'video' && file.poster ? (
                     <div style={{ width: '100%', height: '100%', position: 'relative' }}>

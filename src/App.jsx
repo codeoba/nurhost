@@ -14,7 +14,7 @@ import PricingModal from './components/PricingModal';
 import Toast from './components/Toast';
 
 import { INITIAL_FOLDERS, INITIAL_FILES } from './mockData';
-import { fetchFilesAndFolders } from './api';
+import { fetchFilesAndFolders, detectFileType } from './api';
 
 import MonacoTextEditorModal from './components/MonacoTextEditorModal';
 import ZipUnzipModal from './components/ZipUnzipModal';
@@ -184,11 +184,12 @@ export default function App() {
 
   // Handlers
   const handlePreviewFile = (file) => {
-    if (file.type === 'audio') setPreviewAudioFile(file);
-    else if (file.type === 'video') setPreviewVideoFile(file);
-    else if (file.type === 'image') setPreviewImageFile(file);
-    else if (file.type === 'code') setPreviewCodeFile(file);
-    else triggerToast(`Opened preview for ${file.name}`);
+    const fileType = detectFileType(file.name || file.originalFilename, file.mimeType) || file.type;
+    if (fileType === 'audio') setPreviewAudioFile(file);
+    else if (fileType === 'video') setPreviewVideoFile(file);
+    else if (fileType === 'image') setPreviewImageFile(file);
+    else if (fileType === 'code') setPreviewCodeFile(file);
+    else setPreviewCodeFile(file); // Default fallback: open text/code viewer for all documents!
   };
 
   const handleToggleStarFile = (id) => {

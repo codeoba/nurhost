@@ -39,12 +39,18 @@ export function detectFileType(filename = '', mimeType = '') {
   return 'document';
 }
 
-export function resolveFileUrl(url) {
-  if (!url || url === '#') return '';
-  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
-    return url;
+export function resolveFileUrl(url, filename = '') {
+  if (url && url !== '#' && url !== 'undefined') {
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
+      return url;
+    }
+    return url.startsWith('/') ? url : `/${url}`;
   }
-  return url.startsWith('/') ? url : `/${url}`;
+  if (filename) {
+    const clean = filename.startsWith('17') ? filename : filename;
+    return `/uploads/user_demo-user-123/${clean}`;
+  }
+  return '';
 }
 
 export async function fetchFilesAndFolders() {
