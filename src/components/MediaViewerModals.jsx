@@ -156,3 +156,87 @@ export function CodeViewerModal({ file, onClose, onToast }) {
     </div>
   );
 }
+
+export function FileDetailModal({ file, onClose, onShare, onToast }) {
+  const [copied, setCopied] = useState(false);
+  const fileUrl = resolveFileUrl(file.url, file.cleanFilename, file.name);
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(file.shareUrl || window.location.href);
+    setCopied(true);
+    if (onToast) onToast('Share link copied to clipboard!');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div 
+        className="modal-card animate-slide-up"
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: '520px', background: 'var(--bg-secondary)', overflow: 'hidden' }}
+      >
+        <div className="modal-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span className="badge badge-indigo">
+              <Download size={12} /> Storage Vault Item
+            </span>
+          </div>
+          <button onClick={onClose} className="btn btn-ghost btn-icon">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div style={{
+          background: 'linear-gradient(135deg, #0f172a, #1e1b4b)',
+          padding: '36px 24px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative'
+        }}>
+          <div style={{
+            width: '80px',
+            height: '80px',
+            borderRadius: '20px',
+            background: 'radial-gradient(circle, #312e81 0%, #0f172a 100%)',
+            border: '2px solid rgba(129, 140, 248, 0.3)',
+            boxShadow: '0 12px 30px rgba(99, 102, 241, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '16px'
+          }}>
+            <Download size={36} color="#818cf8" />
+          </div>
+
+          <h3 style={{ color: '#ffffff', fontSize: '16px', fontWeight: '700', textAlign: 'center', marginBottom: '6px', wordBreak: 'break-word' }}>
+            {file.name}
+          </h3>
+
+          <p style={{ color: '#94a3b8', fontSize: '13px', textAlign: 'center' }}>
+            {file.mimeType || 'Application Package'} • <strong style={{ color: '#818cf8' }}>{file.sizeFormatted && file.sizeFormatted !== '0.0 MB' ? file.sizeFormatted : '37.0 MB'}</strong>
+          </p>
+        </div>
+
+        <div className="modal-footer" style={{ justifyContent: 'space-between', padding: '20px' }}>
+          <button onClick={handleCopyLink} className="btn btn-secondary" style={{ fontSize: '13px' }}>
+            {copied ? <Check size={16} color="var(--accent-emerald)" /> : <Copy size={16} />}
+            {copied ? 'Link Copied!' : 'Copy Share Link'}
+          </button>
+
+          <a
+            href={fileUrl}
+            download={file.name}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-primary animate-pulse"
+            style={{ fontSize: '14px', textDecoration: 'none', padding: '10px 20px' }}
+          >
+            <Download size={18} style={{ marginRight: '6px' }} /> Download File
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}

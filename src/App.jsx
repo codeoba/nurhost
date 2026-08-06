@@ -5,7 +5,7 @@ import DriveToolbar from './components/DriveToolbar';
 import FolderGrid from './components/FolderGrid';
 import FileGrid from './components/FileGrid';
 import AudioPlayerModal from './components/AudioPlayerModal';
-import { VideoPlayerModal, ImageViewerModal, CodeViewerModal } from './components/MediaViewerModals';
+import { VideoPlayerModal, ImageViewerModal, CodeViewerModal, FileDetailModal } from './components/MediaViewerModals';
 import ShareModal from './components/ShareModal';
 import PublicShareView from './components/PublicShareView';
 import UploadModal from './components/UploadModal';
@@ -90,6 +90,7 @@ export default function App() {
   const [previewVideoFile, setPreviewVideoFile] = useState(null);
   const [previewImageFile, setPreviewImageFile] = useState(null);
   const [previewCodeFile, setPreviewCodeFile] = useState(null);
+  const [previewDetailFile, setPreviewDetailFile] = useState(null);
   const [shareFile, setShareFile] = useState(null);
   const [renameTarget, setRenameTarget] = useState(null); // { item, isFolder }
   const [versionFileTarget, setVersionFileTarget] = useState(null);
@@ -195,7 +196,7 @@ export default function App() {
     } else if (detected === 'code') {
       setPreviewCodeFile(file);
     } else {
-      setPreviewCodeFile(file);
+      setPreviewDetailFile(file);
     }
   };
 
@@ -489,6 +490,15 @@ export default function App() {
         <CodeViewerModal
           file={previewCodeFile}
           onClose={() => setPreviewCodeFile(null)}
+          onToast={triggerToast}
+        />
+      )}
+
+      {previewDetailFile && (
+        <FileDetailModal
+          file={previewDetailFile}
+          onClose={() => setPreviewDetailFile(null)}
+          onShare={(f) => setShareFile(f)}
           onToast={triggerToast}
         />
       )}
