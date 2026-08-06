@@ -73,6 +73,17 @@ export default function UploadModal({ onClose, onUploadComplete }) {
         : file.name.endsWith('.zip') || file.name.endsWith('.rar') || file.name.endsWith('.7z') ? 'archive'
         : 'document';
 
+      let fileBlobUrl = '#';
+      if (fileType === 'image') {
+        try {
+          fileBlobUrl = URL.createObjectURL(file);
+        } catch (e) {}
+      }
+
+      const fileUrl = uploadedFileMeta?.storagePath
+        ? (uploadedFileMeta.storagePath.startsWith('/') ? uploadedFileMeta.storagePath : `/${uploadedFileMeta.storagePath}`)
+        : fileBlobUrl;
+
       completedFiles.push({
         id: uploadedFileMeta?.id || `file-${Date.now()}-${i}`,
         name: uploadedFileMeta?.originalFilename || file.name,
@@ -80,7 +91,7 @@ export default function UploadModal({ onClose, onUploadComplete }) {
         mimeType: file.type || 'application/octet-stream',
         size: file.size,
         sizeFormatted: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-        url: uploadedFileMeta?.storagePath || '#',
+        url: fileUrl,
         folderId: null,
         isStarred: false,
         isShared: false,

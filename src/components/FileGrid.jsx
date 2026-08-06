@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { resolveFileUrl } from '../api';
 import { 
   Music, 
   Video, 
@@ -110,7 +111,7 @@ export default function FileGrid({
                 }}>
                   {file.type === 'image' && file.url && file.url !== '#' ? (
                     <img 
-                      src={file.url} 
+                      src={resolveFileUrl(file.url)} 
                       alt={file.name} 
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                     />

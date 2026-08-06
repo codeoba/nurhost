@@ -14,6 +14,7 @@ import PricingModal from './components/PricingModal';
 import Toast from './components/Toast';
 
 import { INITIAL_FOLDERS, INITIAL_FILES } from './mockData';
+import { fetchFilesAndFolders } from './api';
 
 import MonacoTextEditorModal from './components/MonacoTextEditorModal';
 import ZipUnzipModal from './components/ZipUnzipModal';
@@ -59,6 +60,20 @@ export default function App() {
       localStorage.setItem('nurhost_files', JSON.stringify(files));
     } catch (e) {}
   }, [files]);
+
+  // Fetch real uploaded files from server disk storage on mount
+  useEffect(() => {
+    fetchFilesAndFolders().then(data => {
+      if (data && data.success && Array.isArray(data.files) && data.files.length > 0) {
+        setFiles(prev => {
+          const apiFileNames = new Set(data.files.map(f => f.originalFilename || f.name));
+          // keep initial mock/local files that aren't on server yet
+          const nonDuplicateLocal = prev.filter(f => !apiFileNames.has(f.name) && !apiFileNames.has(f.originalFilename));
+          return [...data.files, ...nonDuplicateLocal];
+        });
+      }
+    }).catch(err => console.warn("Could not sync server files:", err));
+  }, []);
 
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');

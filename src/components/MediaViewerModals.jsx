@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Download, Share2, Film, Image as ImageIcon, Code, Copy, Check } from 'lucide-react';
+import { resolveFileUrl } from '../api';
 
 export function VideoPlayerModal({ file, onClose, onShare, onToast }) {
   return (
@@ -74,18 +75,18 @@ export function ImageViewerModal({ file, onClose, onShare }) {
         </div>
 
         <div style={{ background: 'rgba(0,0,0,0.9)', padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', maxHeight: '550px' }}>
-          <img src={file.url} alt={file.name} style={{ maxWidth: '100%', maxHeight: '500px', objectFit: 'contain', borderRadius: 'var(--radius-sm)' }} />
+          <img src={resolveFileUrl(file.url)} alt={file.name} style={{ maxWidth: '100%', maxHeight: '500px', objectFit: 'contain', borderRadius: 'var(--radius-sm)' }} />
         </div>
 
         <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            Dimensions: <strong>{file.dimensions || '3840 x 2160'}</strong> • Size: <strong>{file.sizeFormatted}</strong>
+            Dimensions: <strong>{file.dimensions || 'Image File'}</strong> • Size: <strong>{file.sizeFormatted}</strong>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button onClick={() => { onClose(); onShare(file); }} className="btn btn-secondary" style={{ fontSize: '13px' }}>
               <Share2 size={16} /> Share Image
             </button>
-            <a href={file.url} download={file.name} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ fontSize: '13px', textDecoration: 'none' }}>
+            <a href={resolveFileUrl(file.url)} download={file.name} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ fontSize: '13px', textDecoration: 'none' }}>
               <Download size={16} /> Download
             </a>
           </div>

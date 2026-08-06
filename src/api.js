@@ -9,6 +9,14 @@ const API_BASE_URL = import.meta.env.DEV
   : "/api";
 
 
+export function resolveFileUrl(url) {
+  if (!url || url === '#') return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
+    return url;
+  }
+  return url.startsWith('/') ? url : `/${url}`;
+}
+
 export async function fetchFilesAndFolders() {
   try {
     const res = await fetch(`${API_BASE_URL}/files`);
