@@ -44,6 +44,13 @@ export function resolveFileUrl(url, cleanFilename = '', name = '') {
     if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
       return url;
     }
+    // Auto convert legacy /uploads/ or uploads/ paths to /api/uploads/ for Express static proxy
+    if (url.startsWith('/uploads/')) {
+      return `/api${url}`;
+    }
+    if (url.startsWith('uploads/')) {
+      return `/api/${url}`;
+    }
     return url.startsWith('/') ? url : `/${url}`;
   }
   const target = cleanFilename || name;
