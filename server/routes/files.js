@@ -337,13 +337,78 @@ router.post("/complete-chunked", async (req, res) => {
   }
 });
 
-// GET /api/files/:id/download - Get download presigned URL
-router.get("/:id/download", async (req, res) => {
+// Helper function to delete physical file from disk recursively
+function deleteFileFromDisk(identifier) {
+  const uploadsDir = path.join(__dirname, '../uploads');
+  if (!fs.existsSync(uploadsDir)) return false;
+
+  const targetName = decodeURIComponent(identifier).trim();
+  let deletedAny = false;
+
+  function searchAndDelete(dir) {
+    if (!fs.existsSync(dir)) return;
+    const items = fs.readdirSync(dir);
+    for (const item of items) {
+      const fullPath = path.join(dir, item);
+      const stat = fs.statSync(fullPath);
+      if (stat.isDirectory()) {
+        searchAndDelete(fullPath);
+      } else {
+        const originalName = item.replace(/^\d+_/, '');
+        if (
+          item === targetName ||
+          originalName === targetName ||
+          item.includes(targetName) ||
+          fullPath.includes(targetName)
+        ) {
+          try {
+            fs.unlinkSync(fullPath);
+            console.log(`🗑️ Permanently deleted physical file from disk: ${fullPath}`);
+            deletedAny = true;
+          } catch (e) {
+            console.warn(`Could not delete file ${fullPath}:`, e.message);
+          }
+        }
+      }
+    }
+  }
+
+  searchAndDelete(uploadsDir);
+  return deletedAny;
+}
+
+// POST /api/files/batch-delete - Delete multiple files permanently from disk
+router.post('/batch-delete', async (req, res) => {
   try {
-    const downloadUrl = await getDownloadUrl(`users/${DEMO_USER_ID}/demo_file.pdf`);
-    res.json({ success: true, downloadUrl });
+    const { fileIds = [], filenames = [] } = req.body;
+    const targets = [...fileIds, ...filenames];
+
+    for (const target of targets) {
+      if (target) {
+        deleteFileFromDisk(target);
+      }
+    }
+
+    return res.json({ success: true, message: 'Batch permanent deletion completed' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Batch delete error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// DELETE /api/files/:id - Delete single file permanently from disk
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = deleteFileFromDisk(id);
+
+    return res.json({
+      success: true,
+      message: deleted ? `File "${id}" permanently deleted from disk.` : `File record removed.`
+    });
+  } catch (error) {
+    console.error('File delete error:', error);
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 

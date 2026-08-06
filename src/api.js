@@ -149,6 +149,33 @@ export async function extractSelectiveZip(fileIdOrName, selectedIndices, targetF
   }
 }
 
+export async function deleteFileApi(fileId, cleanFilename = '') {
+  try {
+    const targetQuery = encodeURIComponent(cleanFilename || fileId);
+    const res = await fetch(`${API_BASE_URL}/files/${targetQuery}`, {
+      method: "DELETE",
+    });
+    const data = await safeJsonParse(res);
+    return data || { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteBatchFilesApi(fileIds = [], filenames = []) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/files/batch-delete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileIds, filenames }),
+    });
+    const data = await safeJsonParse(res);
+    return data || { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
 export async function downloadFromUrl(url, filename = '') {
   try {
     const res = await fetch(`${API_BASE_URL}/downloads/url`, {

@@ -14,7 +14,7 @@ import PricingModal from './components/PricingModal';
 import Toast from './components/Toast';
 
 import { INITIAL_FOLDERS, INITIAL_FILES } from './mockData';
-import { fetchFilesAndFolders, detectFileType } from './api';
+import { fetchFilesAndFolders, detectFileType, deleteFileApi, deleteBatchFilesApi } from './api';
 
 import MonacoTextEditorModal from './components/MonacoTextEditorModal';
 import ZipUnzipModal from './components/ZipUnzipModal';
@@ -235,9 +235,19 @@ export default function App() {
     triggerToast('File restored to Drive ✓');
   };
 
-  const handlePermanentDelete = (id) => {
-    setFiles(prev => prev.filter(f => f.id !== id));
-    triggerToast('File permanently deleted');
+  const handlePermanentDelete = async (id) => {
+    const targetFile = files.find(f => f.id === id);
+    if (targetFile) {
+      try {
+        await deleteFileApi(targetFile.id, targetFile.cleanFilename || targetFile.name);
+      } catch (e) {}
+    }
+    const updated = files.filter(f => f.id !== id);
+    setFiles(updated);
+    try {
+      localStorage.setItem('nurhost_files', JSON.stringify(updated));
+    } catch (e) {}
+    triggerToast('File permanently deleted from server disk');
   };
 
   const handleBulkRestore = (ids) => {
@@ -245,9 +255,20 @@ export default function App() {
     triggerToast(`${ids.length} file(s) restored to Drive ✓`);
   };
 
-  const handleBulkPermanentDelete = (ids) => {
-    setFiles(prev => prev.filter(f => !ids.includes(f.id)));
-    triggerToast(`${ids.length} file(s) permanently deleted`);
+  const handleBulkPermanentDelete = async (ids) => {
+    const targets = files.filter(f => ids.includes(f.id));
+    try {
+      await deleteBatchFilesApi(
+        targets.map(f => f.id),
+        targets.map(f => f.cleanFilename || f.name)
+      );
+    } catch (e) {}
+    const updated = files.filter(f => !ids.includes(f.id));
+    setFiles(updated);
+    try {
+      localStorage.setItem('nurhost_files', JSON.stringify(updated));
+    } catch (e) {}
+    triggerToast(`${ids.length} file(s) permanently deleted from server disk`);
   };
 
   const handleMoveFiles = (fileIds, targetFolderId) => {
