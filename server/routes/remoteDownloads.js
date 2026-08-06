@@ -7,6 +7,20 @@ const path = require('path');
 const { sanitizeFilename } = require('../utils/sanitizeFilename');
 const prisma = require('../prismaClient');
 
+let WebTorrent;
+try {
+  WebTorrent = require('webtorrent');
+} catch (e) {}
+
+let torrentClient = null;
+if (WebTorrent) {
+  try {
+    torrentClient = new WebTorrent();
+  } catch (e) {
+    console.warn('WebTorrent init info:', e.message);
+  }
+}
+
 // In-memory active download jobs tracker
 const activeJobs = new Map();
 

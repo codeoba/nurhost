@@ -107,13 +107,17 @@ router.get("/", (req, res) => {
       const fullPath = path.join(uploadsDir, fname);
       const stats = fs.statSync(fullPath);
       const originalName = fname.replace(/^\d+_/, '');
-      const isAudio = /\.(mp3|wav|ogg|flac|m4a|aac)$/i.test(originalName);
-      const isVideo = /\.(mp4|mkv|webm|avi|mov|flv)$/i.test(originalName);
       const isImg = /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)$/i.test(originalName);
-      const isZip = /\.(zip|rar|7z|tar|gz|bz2)$/i.test(originalName);
+      const isVideo = /\.(mp4|mkv|webm|avi|mov|flv)$/i.test(originalName);
+      const isAudio = /\.(mp3|wav|ogg|flac|m4a|aac)$/i.test(originalName);
+      const isZip = /\.(zip|rar|7z|tar|gz|bz2|iso)$/i.test(originalName) || originalName.toLowerCase().includes('pro') || originalName.toLowerCase().includes('crack') || originalName.toLowerCase().includes('setup') || originalName.toLowerCase().includes('driver') || originalName.toLowerCase().includes('booster') || originalName.toLowerCase().includes('iobit');
       const isCode = /\.(txt|htaccess|env|conf|ini|json|js|jsx|ts|tsx|html|css|py|php|sql|sh|md|xml|yml|yaml)$/i.test(originalName) || originalName.includes('htaccess') || originalName.includes('env');
-      const type = isAudio ? 'audio' : isVideo ? 'video' : isImg ? 'image' : isZip ? 'archive' : isCode ? 'code' : 'document';
-      const mimeType = isImg ? 'image/jpeg' : isVideo ? 'video/mp4' : isAudio ? 'audio/mpeg' : 'application/octet-stream';
+      const type = isImg ? 'image' : isVideo ? 'video' : isAudio ? 'audio' : isZip ? 'archive' : isCode ? 'code' : 'document';
+      const mimeType = isImg ? 'image/jpeg' : isVideo ? 'video/mp4' : isAudio ? 'audio/mpeg' : isZip ? 'application/zip' : 'application/octet-stream';
+
+      const sizeFormatted = stats.size >= 1024 * 1024
+        ? `${(stats.size / (1024 * 1024)).toFixed(1)} MB`
+        : `${(stats.size / 1024).toFixed(1)} KB`;
 
       return {
         id: `srv-file-${i}-${Math.round(stats.mtimeMs)}`,
@@ -123,7 +127,7 @@ router.get("/", (req, res) => {
         type,
         mimeType,
         size: stats.size,
-        sizeFormatted: `${(stats.size / (1024 * 1024)).toFixed(1)} MB`,
+        sizeFormatted,
         storagePath: `/api/uploads/user_demo-user-123/${fname}`,
         url: `/api/uploads/user_demo-user-123/${fname}`,
         folderId: null,
