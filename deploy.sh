@@ -111,12 +111,39 @@ pm2 start server/index.js \
 pm2 startup
 pm2 save
 
+# --- Step 8: Auto-Inject aaPanel Nginx Proxy Rewrite ---
+echo -e "\n${YELLOW}[8/8] Sanidi Nginx Reverse Proxy kwenye aaPanel...${NC}"
+REWRITE_FILE="/www/server/panel/vhost/rewrite/nurhost.mdandu.com.conf"
+if [ -d "/www/server/panel/vhost/rewrite" ]; then
+    cat > "$REWRITE_FILE" << 'REWRITE_EOF'
+location /api/ {
+    proxy_pass http://127.0.0.1:5050;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_cache_bypass $http_upgrade;
+    proxy_read_timeout 600s;
+    client_max_body_size 500M;
+}
+
+location / {
+    try_files $uri $uri/ /index.html;
+}
+REWRITE_EOF
+    echo -e "${GREEN}✅ aaPanel Nginx Rewrite rules zimesasishwa kikamilifu!${NC}"
+    nginx -t 2>/dev/null && nginx -s reload 2>/dev/null || true
+fi
+
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║  🎉 NurHost imewekwa kikamilifu!         ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════╝${NC}"
 echo ""
-echo -e "  🌐 Website  : ${BLUE}http://nurhost.mdandu.com${NC}"
+echo -e "  🌐 Website  : ${BLUE}https://nurhost.mdandu.com${NC}"
 echo -e "  ⚙️  API Health: ${BLUE}http://127.0.0.1:5050/api/health${NC}"
 echo -e "  📊 PM2 logs : ${YELLOW}pm2 logs nurhost-backend${NC}"
 echo ""
