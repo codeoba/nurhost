@@ -73,11 +73,12 @@ router.get("/", (req, res) => {
       const fullPath = path.join(uploadsDir, fname);
       const stats = fs.statSync(fullPath);
       const originalName = fname.replace(/^\d+_/, '');
-      const isAudio = /\.(mp3|wav|ogg|flac|m4a)$/i.test(originalName);
-      const isVideo = /\.(mp4|mkv|webm|avi|mov)$/i.test(originalName);
-      const isImg = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(originalName);
-      const isZip = /\.(zip|rar|7z|tar|gz)$/i.test(originalName);
-      const type = isAudio ? 'audio' : isVideo ? 'video' : isImg ? 'image' : isZip ? 'archive' : 'document';
+      const isAudio = /\.(mp3|wav|ogg|flac|m4a|aac)$/i.test(originalName);
+      const isVideo = /\.(mp4|mkv|webm|avi|mov|flv)$/i.test(originalName);
+      const isImg = /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)$/i.test(originalName);
+      const isZip = /\.(zip|rar|7z|tar|gz|bz2)$/i.test(originalName);
+      const isCode = /\.(txt|htaccess|env|conf|ini|json|js|jsx|ts|tsx|html|css|py|php|sql|sh|md|xml|yml|yaml)$/i.test(originalName) || originalName.includes('htaccess') || originalName.includes('env');
+      const type = isAudio ? 'audio' : isVideo ? 'video' : isImg ? 'image' : isZip ? 'archive' : isCode ? 'code' : 'document';
 
       return {
         id: `srv-file-${i}-${Math.round(stats.mtimeMs)}`,

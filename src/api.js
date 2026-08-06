@@ -9,6 +9,36 @@ const API_BASE_URL = import.meta.env.DEV
   : "/api";
 
 
+export function detectFileType(filename = '', mimeType = '') {
+  const name = (filename || '').toLowerCase().trim();
+  const mime = (mimeType || '').toLowerCase().trim();
+
+  if (mime.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico|tiff)$/i.test(name)) {
+    return 'image';
+  }
+  if (mime.startsWith('audio/') || /\.(mp3|wav|ogg|flac|m4a|aac|wma)$/i.test(name)) {
+    return 'audio';
+  }
+  if (mime.startsWith('video/') || /\.(mp4|mkv|webm|avi|mov|flv|wmv)$/i.test(name)) {
+    return 'video';
+  }
+  if (/\.(zip|rar|7z|tar|gz|bz2|iso)$/i.test(name)) {
+    return 'archive';
+  }
+  if (
+    mime.startsWith('text/') ||
+    mime.includes('json') ||
+    mime.includes('javascript') ||
+    mime.includes('xml') ||
+    /\.(txt|htaccess|env|conf|ini|json|js|jsx|ts|tsx|html|css|py|php|sql|sh|md|xml|yml|yaml|log)$/i.test(name) ||
+    name.includes('htaccess') ||
+    name.includes('env')
+  ) {
+    return 'code';
+  }
+  return 'document';
+}
+
 export function resolveFileUrl(url) {
   if (!url || url === '#') return '';
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {

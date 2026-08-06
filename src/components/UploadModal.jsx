@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { X, UploadCloud, Link as LinkIcon, DownloadCloud, File, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import { uploadFileToBackend, downloadFromUrl, downloadFromTorrent } from '../api';
+import { uploadFileToBackend, downloadFromUrl, downloadFromTorrent, detectFileType } from '../api';
 
 export default function UploadModal({ onClose, onUploadComplete }) {
   const [activeTab, setActiveTab] = useState('local');
@@ -67,11 +67,7 @@ export default function UploadModal({ onClose, onUploadComplete }) {
         console.warn("Upload API warning, using local file entry fallback:", err);
       }
 
-      const fileType = file.type.startsWith('audio') ? 'audio'
-        : file.type.startsWith('video') ? 'video'
-        : file.type.startsWith('image') ? 'image'
-        : file.name.endsWith('.zip') || file.name.endsWith('.rar') || file.name.endsWith('.7z') ? 'archive'
-        : 'document';
+      const fileType = detectFileType(file.name, file.type);
 
       let fileBlobUrl = '#';
       if (fileType === 'image') {

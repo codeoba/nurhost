@@ -40,8 +40,12 @@ function sanitizeFilename(originalName = "unnamed_file") {
   // 5. Convert multiple spaces / dashes to single underscore
   baseName = baseName.replace(/[\s\-_]+/g, "_");
 
-  // 6. Remove leading and trailing dots, underscores, or dashes
-  baseName = baseName.replace(/^[\.\-_]+|[\.\-_]+$/g, "");
+  // 6. Remove leading and trailing dots, underscores, or dashes (preserve dotfiles like .htaccess, .env)
+  if (!originalName.trim().startsWith('.')) {
+    baseName = baseName.replace(/^[\.\-_]+|[\.\-_]+$/g, "");
+  } else {
+    baseName = baseName.replace(/[\-_]+$/g, "");
+  }
 
   // 7. Fallback if baseName is empty after cleaning
   if (!baseName || baseName.length === 0) {
