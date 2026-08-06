@@ -140,16 +140,14 @@ export default function UploadModal({ onClose, onUploadComplete }) {
       if (res.success) {
         setUrlStatusMsg({ type: 'success', text: res.message || 'Mchakato wa ku-fetch URL umeanza!' });
         
-        const createdFile = {
+        const createdFile = res.file || {
           id: res.job?.id || `url-file-${Date.now()}`,
           name: res.job?.name || remoteFilename || 'downloaded_url_file.mp4',
           type: (res.job?.name || remoteUrl).endsWith('.mp3') ? 'audio' : 'video',
           mimeType: 'video/mp4',
           size: 15400000,
           sizeFormatted: '14.7 MB',
-          url: remoteUrl,
-          shareCode: `url-${Date.now()}`,
-          shareUrl: `http://localhost:5173/share/url-${Date.now()}`,
+          url: `/api/files/uploads-serve/user_demo-user-123/url_${Date.now()}`,
           folderId: null,
           isStarred: false,
           isShared: false,
@@ -185,16 +183,14 @@ export default function UploadModal({ onClose, onUploadComplete }) {
       if (res.success) {
         setTorrentStatusMsg({ type: 'success', text: res.message || 'Magnet link imepokelewa!' });
 
-        const createdFile = {
+        const createdFile = res.file || {
           id: res.job?.id || `torrent-${Date.now()}`,
           name: res.job?.name || torrentName || 'downloaded_torrent_archive.zip',
           type: 'archive',
           mimeType: 'application/zip',
           size: 1200000000,
           sizeFormatted: '1.12 GB',
-          url: '#',
-          shareCode: `torrent-${Date.now()}`,
-          shareUrl: `http://localhost:5173/share/torrent-${Date.now()}`,
+          url: `/api/files/uploads-serve/user_demo-user-123/torrent_${Date.now()}`,
           folderId: null,
           isStarred: false,
           isShared: false,
