@@ -28,7 +28,7 @@ export function uploadFileToBackend(file, onProgress) {
 
     if (xhr.upload && onProgress) {
       xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
+        if (e.lengthComputable && e.total > 0) {
           const percent = Math.round((e.loaded / e.total) * 100);
           onProgress(percent);
         }
@@ -36,17 +36,21 @@ export function uploadFileToBackend(file, onProgress) {
     }
 
     xhr.onload = () => {
-      let data = {};
+      let data = null;
       try {
         data = JSON.parse(xhr.responseText);
       } catch (err) {
-        data = {};
+        data = null;
       }
 
-      if (xhr.status >= 200 && xhr.status < 300 && data.success) {
-        resolve(data);
+      if (xhr.status >= 200 && xhr.status < 300) {
+        if (data && data.success) {
+          resolve(data);
+        } else {
+          resolve({ success: false, error: (data && data.error) || `Upload failed (${xhr.status})` });
+        }
       } else {
-        const errorMsg = data.error || (xhr.status === 413 ? "Faili ni kubwa mno (Max 500MB)." : `Server error (${xhr.status})`);
+        const errorMsg = (data && data.error) || (xhr.status === 413 ? "Faili ni kubwa mno (Max 2GB)." : `Server error (${xhr.status})`);
         resolve({ success: false, error: errorMsg });
       }
     };
@@ -59,7 +63,11 @@ export function uploadFileToBackend(file, onProgress) {
       resolve({ success: false, error: "Upload imechukua muda mrefu (Timeout)." });
     };
 
-    xhr.open("POST", `${API_BASE_URL}/files/upload`);
+    const targetUrl = API_BASE_URL.startsWith("http")
+      ? `${API_BASE_URL}/files/upload`
+      : `/api/files/upload`;
+
+    xhr.open("POST", targetUrl);
     xhr.send(formData);
   });
 }

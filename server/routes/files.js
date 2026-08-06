@@ -15,10 +15,25 @@ const {
   getStorageProviderInfo 
 } = require("../utils/s3Storage");
 
-// Multer memory storage for direct buffer upload
+const uploadsDir = path.join(__dirname, "../uploads/user_demo-user-123");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Multer diskStorage streams directly to disk to prevent RAM crash on large uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const { cleanFilename } = sanitizeFilename(file.originalname);
+    cb(null, `${Date.now()}_${cleanFilename}`);
+  }
+});
+
 const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB max single upload limit
+  storage,
+  limits: { fileSize: 2000 * 1024 * 1024 }, // 2GB max file upload limit
 });
 
 const DEMO_USER_ID = "demo-user-123";
@@ -92,45 +107,47 @@ router.post("/:id/versions/revert", (req, res) => {
 });
 
 // POST /api/files/upload - Single/Multi File Upload with Sanitation
-router.post("/upload", upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: "No file provided" });
+router.post("/upload", (req, res) => {
+  upload.single("file")(req, res, async (err) => {
+    if (err) {
+      const msg = err.code === 'LIMIT_FILE_SIZE' ? 'Faili ni kubwa mno (Ziada ya 2GB limit).' : err.message;
+      return res.status(400).json({ success: false, error: msg });
     }
 
-    const { originalname, buffer, mimetype } = req.file;
-    const { cleanFilename, originalFilename } = sanitizeFilename(originalname);
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, error: "Hakuna faili lililochaguliwa" });
+      }
 
-    const storageResult = await uploadFile({
-      userId: DEMO_USER_ID,
-      cleanFilename,
-      buffer,
-      mimeType: mimetype,
-    });
+      const { originalname, size, filename, mimetype, path: filePath } = req.file;
+      const { cleanFilename, originalFilename } = sanitizeFilename(originalname);
 
-    const fileId = `file_${Date.now()}`;
-    const fileMeta = {
-      id: fileId,
-      originalFilename,
-      cleanFilename,
-      mimeType: mimetype,
-      sizeBytes: buffer.length,
-      size: `${(buffer.length / (1024 * 1024)).toFixed(2)} MB`,
-      storagePath: storageResult.storagePath,
-      createdAt: new Date().toISOString(),
-    };
+      const fileId = `file_${Date.now()}`;
+      const relativeStoragePath = `uploads/user_demo-user-123/${filename}`;
 
-    // Save initial version
-    addFileVersion(fileId, cleanFilename, buffer.toString('utf-8').slice(0, 1000), "Initial Upload");
+      const fileMeta = {
+        id: fileId,
+        originalFilename,
+        cleanFilename,
+        mimeType: mimetype || 'application/octet-stream',
+        sizeBytes: size,
+        size: `${(size / (1024 * 1024)).toFixed(2)} MB`,
+        storagePath: relativeStoragePath,
+        createdAt: new Date().toISOString(),
+      };
 
-    res.json({
-      success: true,
-      message: "File uploaded and sanitized successfully",
-      file: fileMeta,
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+      // Save initial version record
+      addFileVersion(fileId, cleanFilename, filename, "Initial Upload");
+
+      return res.json({
+        success: true,
+        message: "Faili limepakiwa kikamilifu",
+        file: fileMeta,
+      });
+    } catch (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  });
 });
 
 // POST /api/files/new-text - Create New Text File Directly (Monaco Editor support)
