@@ -84,8 +84,14 @@ npx prisma db push --accept-data-loss
 echo -e "${GREEN}✅ Database tables zimeundwa${NC}"
 
 cd $APP_DIR
+# aaPanel inaweka .user.ini kwenye dist/ inayolinda faili - iondoe kwanza
+echo -e "${YELLOW}   Kuondoa aaPanel .user.ini lock...${NC}"
+chattr -i $APP_DIR/dist/.user.ini 2>/dev/null || true
+rm -f $APP_DIR/dist/.user.ini 2>/dev/null || true
+
 npm run build
 echo -e "${GREEN}✅ Frontend imejengwa (dist/)${NC}"
+
 
 # --- Step 7: PM2 ---
 echo -e "\n${YELLOW}[7/7] Anzisha backend na PM2...${NC}"
