@@ -184,15 +184,19 @@ export default function App() {
 
   // Handlers
   const handlePreviewFile = (file) => {
-    const detected = detectFileType(file.name || file.originalFilename, file.mimeType);
-    const fileType = (detected && detected !== 'document') ? detected : (file.type || 'document');
+    const name = (file.name || file.originalFilename || '').toLowerCase();
+    const detected = detectFileType(name, file.mimeType);
 
-    if (fileType === 'audio') setPreviewAudioFile(file);
-    else if (fileType === 'video') setPreviewVideoFile(file);
-    else if (fileType === 'image') setPreviewImageFile(file);
-    else if (fileType === 'archive') setActiveZipFile(file);
-    else if (fileType === 'code') setPreviewCodeFile(file);
-    else setPreviewCodeFile(file);
+    if (detected === 'audio') setPreviewAudioFile(file);
+    else if (detected === 'video') setPreviewVideoFile(file);
+    else if (detected === 'image') setPreviewImageFile(file);
+    else if (detected === 'archive' && name.endsWith('.zip')) {
+      setActiveZipFile(file);
+    } else if (detected === 'code') {
+      setPreviewCodeFile(file);
+    } else {
+      setPreviewCodeFile(file);
+    }
   };
 
   const handleToggleStarFile = (id) => {
