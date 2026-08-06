@@ -114,13 +114,13 @@ pm2 save
 # --- Step 8: Auto-Inject aaPanel Nginx Proxy Rewrite ---
 echo -e "\n${YELLOW}[8/8] Sanidi Nginx Reverse Proxy kwenye aaPanel...${NC}"
 REWRITE_FILE="/www/server/panel/vhost/rewrite/nurhost.mdandu.com.conf"
-if [ -d "/www/server/panel/vhost/rewrite" ]; then
-    cat > "$REWRITE_FILE" << 'REWRITE_EOF'
-location /api/ {
+MAIN_CONF="/www/server/panel/vhost/nginx/nurhost.mdandu.com.conf"
+
+REWRITE_CONTENT='location /api/ {
     proxy_pass http://127.0.0.1:5050;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection 'upgrade';
+    proxy_set_header Connection "upgrade";
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -132,11 +132,21 @@ location /api/ {
 
 location / {
     try_files $uri $uri/ /index.html;
-}
-REWRITE_EOF
-    echo -e "${GREEN}✅ aaPanel Nginx Rewrite rules zimesasishwa kikamilifu!${NC}"
-    nginx -t 2>/dev/null && nginx -s reload 2>/dev/null || true
+}'
+
+if [ -d "/www/server/panel/vhost/rewrite" ]; then
+    echo "$REWRITE_CONTENT" > "$REWRITE_FILE"
+    echo -e "${GREEN}✅ aaPanel Nginx Rewrite rules zimesasishwa (${REWRITE_FILE})${NC}"
 fi
+
+if [ -f "$MAIN_CONF" ]; then
+    if ! grep -q "location /api/" "$MAIN_CONF"; then
+        sed -i '/server_name/a \    location /api/ {\n        proxy_pass http://127.0.0.1:5050;\n        proxy_http_version 1.1;\n        proxy_set_header Upgrade $http_upgrade;\n        proxy_set_header Connection "upgrade";\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n        proxy_read_timeout 600s;\n        client_max_body_size 500M;\n    }' "$MAIN_CONF"
+        echo -e "${GREEN}✅ Main Nginx conf imesasishwa na /api/ proxy pass (${MAIN_CONF})${NC}"
+    fi
+fi
+
+nginx -t 2>/dev/null && systemctl reload nginx 2>/dev/null || service nginx reload 2>/dev/null || true
 
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════╗${NC}"

@@ -137,34 +137,17 @@ export default function UploadModal({ onClose, onUploadComplete }) {
 
     try {
       const res = await downloadFromUrl(remoteUrl.trim(), remoteFilename.trim());
-      if (res.success) {
-        setUrlStatusMsg({ type: 'success', text: res.message || 'Mchakato wa ku-fetch URL umeanza!' });
-        
-        const createdFile = res.file || {
-          id: res.job?.id || `url-file-${Date.now()}`,
-          name: res.job?.name || remoteFilename || 'downloaded_url_file.mp4',
-          type: (res.job?.name || remoteUrl).endsWith('.mp3') ? 'audio' : 'video',
-          mimeType: 'video/mp4',
-          size: 15400000,
-          sizeFormatted: '14.7 MB',
-          url: `/api/files/uploads-serve/user_demo-user-123/url_${Date.now()}`,
-          folderId: null,
-          isStarred: false,
-          isShared: false,
-          inTrash: false,
-          updatedAt: new Date().toISOString(),
-          createdAt: new Date().toISOString()
-        };
-
+      if (res.success && res.file) {
+        setUrlStatusMsg({ type: 'success', text: res.message || 'Mchakato wa ku-fetch URL umekamilika!' });
         setTimeout(() => {
-          onUploadComplete([createdFile]);
+          onUploadComplete([res.file]);
           onClose();
-        }, 1200);
+        }, 1000);
       } else {
         setUrlStatusMsg({ type: 'error', text: res.error || 'Imeshindwa kupakua kutoka URL.' });
       }
     } catch (err) {
-      setUrlStatusMsg({ type: 'error', text: 'Imeshindwa kuunganisha na server.' });
+      setUrlStatusMsg({ type: 'error', text: 'Imeshindwa kuunganisha na server backend.' });
     } finally {
       setIsUrlSubmitting(false);
     }
@@ -180,34 +163,17 @@ export default function UploadModal({ onClose, onUploadComplete }) {
 
     try {
       const res = await downloadFromTorrent(magnetUrl.trim(), torrentName.trim());
-      if (res.success) {
-        setTorrentStatusMsg({ type: 'success', text: res.message || 'Magnet link imepokelewa!' });
-
-        const createdFile = res.file || {
-          id: res.job?.id || `torrent-${Date.now()}`,
-          name: res.job?.name || torrentName || 'downloaded_torrent_archive.zip',
-          type: 'archive',
-          mimeType: 'application/zip',
-          size: 1200000000,
-          sizeFormatted: '1.12 GB',
-          url: `/api/files/uploads-serve/user_demo-user-123/torrent_${Date.now()}`,
-          folderId: null,
-          isStarred: false,
-          isShared: false,
-          inTrash: false,
-          updatedAt: new Date().toISOString(),
-          createdAt: new Date().toISOString()
-        };
-
+      if (res.success && res.file) {
+        setTorrentStatusMsg({ type: 'success', text: res.message || 'Magnet link imepokelewa na kuundwa kwenye server!' });
         setTimeout(() => {
-          onUploadComplete([createdFile]);
+          onUploadComplete([res.file]);
           onClose();
-        }, 1200);
+        }, 1000);
       } else {
         setTorrentStatusMsg({ type: 'error', text: res.error || 'Imeshindwa kupakua magnet link.' });
       }
     } catch (err) {
-      setTorrentStatusMsg({ type: 'error', text: 'Imeshindwa kuunganisha na server.' });
+      setTorrentStatusMsg({ type: 'error', text: 'Imeshindwa kuunganisha na server backend.' });
     } finally {
       setIsTorrentSubmitting(false);
     }

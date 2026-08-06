@@ -153,9 +153,10 @@ export async function downloadFromUrl(url, filename = '') {
       body: JSON.stringify({ url, filename }),
     });
     const data = await safeJsonParse(res);
-    return data || { success: true, message: "Remote URL download initiated successfully" };
+    if (res.ok && data && data.success) return data;
+    return { success: false, error: (data && data.error) || `Backend API error (${res.status})` };
   } catch (error) {
-    return { success: true, message: "Remote URL download initiated successfully" };
+    return { success: false, error: error.message || 'Network error connecting to server backend' };
   }
 }
 
@@ -167,9 +168,10 @@ export async function downloadFromTorrent(magnetUrl, customName = '') {
       body: JSON.stringify({ magnetUrl, customName }),
     });
     const data = await safeJsonParse(res);
-    return data || { success: true, message: "Torrent download task queued successfully" };
+    if (res.ok && data && data.success) return data;
+    return { success: false, error: (data && data.error) || `Backend API error (${res.status})` };
   } catch (error) {
-    return { success: true, message: "Torrent download task queued successfully" };
+    return { success: false, error: error.message || 'Network error connecting to server backend' };
   }
 }
 
