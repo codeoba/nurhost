@@ -40,22 +40,16 @@ export function detectFileType(filename = '', mimeType = '') {
 }
 
 export function resolveFileUrl(url, cleanFilename = '', name = '') {
-  if (url && url !== '#' && url !== 'undefined') {
-    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
-      return url;
-    }
-    // Auto convert legacy /uploads/ or uploads/ paths to /api/uploads/ for Express static proxy
-    if (url.startsWith('/uploads/')) {
-      return `/api${url}`;
-    }
-    if (url.startsWith('uploads/')) {
-      return `/api/${url}`;
-    }
-    return url.startsWith('/') ? url : `/${url}`;
+  if (url && url.startsWith('blob:')) return url;
+  if (url && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:'))) {
+    return url;
   }
-  const target = cleanFilename || name;
+
+  // Extract filename target from cleanFilename, url or name
+  let target = cleanFilename || (url && url !== '#' ? url.split('/').pop() : '') || name;
   if (target) {
-    return target.startsWith('/') ? target : `/api/uploads/user_demo-user-123/${target}`;
+    target = target.replace(/^\/api\/uploads\/user_demo-user-123\//, '').replace(/^\/uploads\/user_demo-user-123\//, '');
+    return `/api/files/uploads-serve/user_demo-user-123/${encodeURIComponent(target)}`;
   }
   return '';
 }

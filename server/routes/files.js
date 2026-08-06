@@ -62,7 +62,41 @@ function addFileVersion(fileId, filename, contentOrPath, changeSummary = "Update
   return versionRecord;
 }
 
-// GET /api/files - Fetch all files saved on server disk storage
+// GET /api/files/uploads-serve/:userDir/:filename - Smart file recovery & serving route
+router.get("/uploads-serve/:userDir/:filename", (req, res) => {
+  try {
+    const { userDir, filename } = req.params;
+    const decodedFilename = decodeURIComponent(filename);
+    const userFolderPath = path.join(__dirname, "../uploads", userDir);
+
+    if (!fs.existsSync(userFolderPath)) {
+      return res.status(404).send("User directory not found");
+    }
+
+    // 1. Direct match
+    const exactPath = path.join(userFolderPath, decodedFilename);
+    if (fs.existsSync(exactPath) && fs.statSync(exactPath).isFile()) {
+      return res.sendFile(exactPath);
+    }
+
+    // 2. Fuzzy match against timestamped filenames on disk
+    const filesOnDisk = fs.readdirSync(userFolderPath);
+    const cleanTarget = decodedFilename.replace(/[\s\-_()]+/g, '').toLowerCase();
+
+    const matchedFile = filesOnDisk.find(f => {
+      const cleanDisk = f.replace(/^\d+_/, '').replace(/[\s\-_()]+/g, '').toLowerCase();
+      return cleanDisk === cleanTarget || f.endsWith(decodedFilename) || f.toLowerCase().includes(cleanTarget);
+    });
+
+    if (matchedFile) {
+      return res.sendFile(path.join(userFolderPath, matchedFile));
+    }
+
+    return res.status(404).send("File not found on server disk");
+  } catch (err) {
+    return res.status(500).send("Error serving file");
+  }
+});
 router.get("/", (req, res) => {
   try {
     if (!fs.existsSync(uploadsDir)) {
