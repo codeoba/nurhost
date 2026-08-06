@@ -1,8 +1,13 @@
 /**
- * API Client for NurHost Backend Server (http://localhost:5000/api)
+ * API Client for NurHost Backend Server
+ * Development: http://localhost:5000/api
+ * Production:  /api (relative - proxied via Nginx to port 5000)
  */
 
-const API_BASE_URL = "http://localhost:5000/api";
+const API_BASE_URL = import.meta.env.DEV
+  ? "http://localhost:5000/api"
+  : "/api";
+
 
 export async function fetchFilesAndFolders() {
   try {

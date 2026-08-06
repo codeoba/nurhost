@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { X, UploadCloud, Link as LinkIcon, DownloadCloud, File, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import { downloadFromUrl, downloadFromTorrent } from '../api';
+import { uploadFileToBackend, downloadFromUrl, downloadFromTorrent } from '../api';
 
 export default function UploadModal({ onClose, onUploadComplete }) {
-  const [activeTab, setActiveTab] = useState('local'); // 'local', 'url', 'torrent'
+  const [activeTab, setActiveTab] = useState('local');
+  const fileInputRef = useRef(null);
   
   // Local upload states
   const [dragActive, setDragActive] = useState(false);
@@ -22,46 +23,86 @@ export default function UploadModal({ onClose, onUploadComplete }) {
   const [isTorrentSubmitting, setIsTorrentSubmitting] = useState(false);
   const [torrentStatusMsg, setTorrentStatusMsg] = useState(null);
 
-  // Simulated local file upload
-  const handleSimulatedUpload = (filesList) => {
-    const newFiles = Array.from(filesList).map((f, i) => ({
+  // Real file upload to backend API
+  const handleRealUpload = async (filesList) => {
+    const filesArray = Array.from(filesList);
+    if (filesArray.length === 0) return;
+
+    const uploadStates = filesArray.map((f, i) => ({
       id: `upload-${Date.now()}-${i}`,
-      name: f.name || `audio_track_${i + 1}.mp3`,
-      size: f.size || 5200000,
-      sizeFormatted: `${((f.size || 5200000) / (1024 * 1024)).toFixed(1)} MB`,
+      name: f.name,
+      size: f.size,
+      sizeFormatted: `${(f.size / (1024 * 1024)).toFixed(1)} MB`,
       progress: 0,
-      status: 'uploading'
+      status: 'uploading',
+      fileObj: f
     }));
 
-    setUploadingFiles(newFiles);
+    setUploadingFiles(uploadStates);
     setIsUploading(true);
 
-    let currentProgress = 0;
-    const interval = setInterval(() => {
-      currentProgress += 25;
-      setUploadingFiles(prev =>
-        prev.map(item => ({
-          ...item,
-          progress: Math.min(100, currentProgress),
-          status: currentProgress >= 100 ? 'completed' : 'uploading'
-        }))
-      );
+    const completedFiles = [];
 
-      if (currentProgress >= 100) {
-        clearInterval(interval);
-        setTimeout(() => {
-          onUploadComplete(newFiles);
-          onClose();
-        }, 800);
+    for (let i = 0; i < filesArray.length; i++) {
+      const file = filesArray[i];
+      
+      // Show progress animation while uploading
+      setUploadingFiles(prev => prev.map((u, idx) =>
+        idx === i ? { ...u, progress: 30 } : u
+      ));
+
+      try {
+        const res = await uploadFileToBackend(file);
+        
+        setUploadingFiles(prev => prev.map((u, idx) =>
+          idx === i ? { ...u, progress: 100, status: 'completed' } : u
+        ));
+
+        if (res.success && res.file) {
+          completedFiles.push({
+            id: res.file.id || `file-${Date.now()}-${i}`,
+            name: res.file.originalFilename || file.name,
+            type: file.type.startsWith('audio') ? 'audio'
+                : file.type.startsWith('video') ? 'video'
+                : file.type.startsWith('image') ? 'image'
+                : file.name.endsWith('.zip') || file.name.endsWith('.rar') ? 'archive'
+                : 'document',
+            mimeType: file.type,
+            size: file.size,
+            sizeFormatted: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+            url: res.file.storagePath || '#',
+            folderId: null,
+            isStarred: false,
+            isShared: false,
+            inTrash: false,
+            updatedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString()
+          });
+        }
+      } catch (err) {
+        setUploadingFiles(prev => prev.map((u, idx) =>
+          idx === i ? { ...u, status: 'error', progress: 0 } : u
+        ));
       }
-    }, 250);
+    }
+
+    setTimeout(() => {
+      if (completedFiles.length > 0) onUploadComplete(completedFiles);
+      onClose();
+    }, 800);
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleSimulatedUpload(e.dataTransfer.files);
+      handleRealUpload(e.dataTransfer.files);
+    }
+  };
+
+  const handleFileInputChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      handleRealUpload(e.target.files);
     }
   };
 
@@ -237,10 +278,7 @@ export default function UploadModal({ onClose, onUploadComplete }) {
                   onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
                   onDragLeave={() => setDragActive(false)}
                   onDrop={handleDrop}
-                  onClick={() => {
-                    const fakeFiles = [{ name: 'nurhost_session_audio.mp3', size: 8400000 }];
-                    handleSimulatedUpload(fakeFiles);
-                  }}
+                  onClick={() => fileInputRef.current?.click()}
                   style={{
                     border: dragActive ? '2px dashed var(--accent-primary)' : '2px dashed var(--border-color)',
                     borderRadius: 'var(--radius-lg)',
@@ -258,7 +296,20 @@ export default function UploadModal({ onClose, onUploadComplete }) {
                   <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px' }}>
                     Inakubali MP3, WAV, MP4, PDF, ZIP na picha hadi 10 GB
                   </p>
-                  <button className="btn btn-primary" style={{ fontSize: '13px' }}>
+                  {/* Hidden real file input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    style={{ display: 'none' }}
+                    onChange={handleFileInputChange}
+                    accept="*/*"
+                  />
+                  <button
+                    className="btn btn-primary"
+                    style={{ fontSize: '13px' }}
+                    onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                  >
                     Chagua Kutoka Kwenye Kompyuta
                   </button>
                 </div>
