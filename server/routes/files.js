@@ -62,6 +62,48 @@ function addFileVersion(fileId, filename, contentOrPath, changeSummary = "Update
   return versionRecord;
 }
 
+// GET /api/files - Fetch all files saved on server disk storage
+router.get("/", (req, res) => {
+  try {
+    if (!fs.existsSync(uploadsDir)) {
+      return res.json({ success: true, files: [] });
+    }
+    const fileList = fs.readdirSync(uploadsDir);
+    const files = fileList.map((fname, i) => {
+      const fullPath = path.join(uploadsDir, fname);
+      const stats = fs.statSync(fullPath);
+      const originalName = fname.replace(/^\d+_/, '');
+      const isAudio = /\.(mp3|wav|ogg|flac|m4a)$/i.test(originalName);
+      const isVideo = /\.(mp4|mkv|webm|avi|mov)$/i.test(originalName);
+      const isImg = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(originalName);
+      const isZip = /\.(zip|rar|7z|tar|gz)$/i.test(originalName);
+      const type = isAudio ? 'audio' : isVideo ? 'video' : isImg ? 'image' : isZip ? 'archive' : 'document';
+
+      return {
+        id: `srv-file-${i}-${Math.round(stats.mtimeMs)}`,
+        name: originalName,
+        originalFilename: originalName,
+        cleanFilename: fname,
+        type,
+        mimeType: 'application/octet-stream',
+        size: stats.size,
+        sizeFormatted: `${(stats.size / (1024 * 1024)).toFixed(1)} MB`,
+        storagePath: `uploads/user_demo-user-123/${fname}`,
+        url: `uploads/user_demo-user-123/${fname}`,
+        folderId: null,
+        isStarred: false,
+        isShared: false,
+        inTrash: false,
+        updatedAt: stats.mtime.toISOString(),
+        createdAt: stats.birthtime.toISOString(),
+      };
+    });
+    res.json({ success: true, files });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // GET /api/files/storage-info - Storage provider info (Contabo S3 / AWS S3 / Local)
 router.get("/storage-info", (req, res) => {
   const info = getStorageProviderInfo();

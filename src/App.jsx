@@ -29,8 +29,36 @@ export default function App() {
   const [activeNav, setActiveNav] = useState('drive');
   const [currentFolderId, setCurrentFolderId] = useState(null);
 
-  const [folders, setFolders] = useState(INITIAL_FOLDERS);
-  const [files, setFiles] = useState(INITIAL_FILES);
+  const [folders, setFolders] = useState(() => {
+    try {
+      const saved = localStorage.getItem('nurhost_folders');
+      return saved ? JSON.parse(saved) : INITIAL_FOLDERS;
+    } catch (e) {
+      return INITIAL_FOLDERS;
+    }
+  });
+
+  const [files, setFiles] = useState(() => {
+    try {
+      const saved = localStorage.getItem('nurhost_files');
+      return saved ? JSON.parse(saved) : INITIAL_FILES;
+    } catch (e) {
+      return INITIAL_FILES;
+    }
+  });
+
+  // Automatically persist files & folders to localStorage on every change
+  useEffect(() => {
+    try {
+      localStorage.setItem('nurhost_folders', JSON.stringify(folders));
+    } catch (e) {}
+  }, [folders]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('nurhost_files', JSON.stringify(files));
+    } catch (e) {}
+  }, [files]);
 
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
