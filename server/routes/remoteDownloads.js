@@ -73,14 +73,73 @@ function downloadUrlWithRedirects(targetUrl, targetPath, maxRedirects = 10) {
           return reject(new Error(`HTTP Status Code ${res.statusCode}`));
         }
 
-        let dispositionFilename = '';
-        const cd = res.headers['content-disposition'];
-        if (cd) {
-          const match = cd.match(/filename\*?=['"]?(?:UTF-8'';?)?([^;'"\r\n]+)['"]?/i);
-          if (match && match[1]) {
-            dispositionFilename = decodeURIComponent(match[1].trim());
-          }
+function getExtensionFromMime(mimeType) {
+  if (!mimeType) return '';
+  const m = mimeType.toLowerCase();
+  if (m.includes('zip') || m.includes('compressed')) return '.zip';
+  if (m.includes('rar')) return '.rar';
+  if (m.includes('7z')) return '.7z';
+  if (m.includes('pdf')) return '.pdf';
+  if (m.includes('png')) return '.png';
+  if (m.includes('jpeg') || m.includes('jpg')) return '.jpg';
+  if (m.includes('audio/mpeg') || m.includes('mp3')) return '.mp3';
+  if (m.includes('video/mp4') || m.includes('mp4')) return '.mp4';
+  if (m.includes('iso')) return '.iso';
+  return '';
+}
+
+function parseContentDispositionFilename(cd) {
+  if (!cd) return '';
+  let match = cd.match(/filename\*=utf-8''([^;]+)/i);
+  if (match && match[1]) {
+    try {
+      return decodeURIComponent(match[1].trim());
+    } catch (e) {
+      return match[1].trim();
+    }
+  }
+  match = cd.match(/filename=["']?([^"';\r\n]+)["']?/i);
+  if (match && match[1]) {
+    try {
+      return decodeURIComponent(match[1].trim());
+    } catch (e) {
+      return match[1].trim();
+    }
+  }
+  return '';
+}
+
+function downloadUrlWithRedirects(targetUrl, targetPath, maxRedirects = 10) {
+  return new Promise((resolve, reject) => {
+    function fetchUrl(currentUrl, redirectCount) {
+      if (redirectCount > maxRedirects) {
+        return reject(new Error('Too many HTTP redirects'));
+      }
+
+      let parsed;
+      try {
+        parsed = new URL(currentUrl);
+      } catch (e) {
+        return reject(new Error('Invalid URL format'));
+      }
+
+      const client = parsed.protocol === 'https:' ? https : http;
+      const req = client.get(currentUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': '*/*'
         }
+      }, (res) => {
+        if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+          const redirectUrl = new URL(res.headers.location, currentUrl).href;
+          return fetchUrl(redirectUrl, redirectCount + 1);
+        }
+
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          return reject(new Error(`HTTP Status Code ${res.statusCode}`));
+        }
+
+        const dispositionFilename = parseContentDispositionFilename(res.headers['content-disposition']);
 
         const fileStream = fs.createWriteStream(targetPath);
         res.pipe(fileStream);
@@ -140,18 +199,36 @@ router.post('/url', async (req, res) => {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
 
-    const timestampedName = `${Date.now()}_${cleanFilename}`;
-    const targetPath = path.join(uploadsDir, timestampedName);
+    const tempTargetPath = path.join(uploadsDir, `temp_${Date.now()}_${cleanFilename}`);
 
     // Download file with redirect-following Promise stream
-    const downloadResult = await downloadUrlWithRedirects(url, targetPath);
+    const downloadResult = await downloadUrlWithRedirects(url, tempTargetPath);
 
     let finalName = cleanFilename;
     if (downloadResult.dispositionFilename) {
-      finalName = downloadResult.dispositionFilename.replace(/[^\w\.\-\s\(\)\[\]]/gi, '_').trim();
+      finalName = downloadResult.dispositionFilename.trim();
     }
 
-    const realSizeBytes = downloadResult.size;
+    // Resolve extension if missing or non-standard
+    let ext = path.extname(finalName);
+    if (!ext || ext.length > 6) {
+      const mimeExt = getExtensionFromMime(downloadResult.contentType);
+      if (mimeExt) {
+        ext = mimeExt;
+        finalName = `${finalName}${mimeExt}`;
+      }
+    }
+
+    const cleanFinalFilename = finalName.replace(/[^\w\.\-\s\(\)\[\]]/gi, '_').trim() || `file_${Date.now()}`;
+    const timestampedName = `${Date.now()}_${cleanFinalFilename}`;
+    const finalDiskPath = path.join(uploadsDir, timestampedName);
+
+    // Rename temp file to final disk path with correct extension
+    if (fs.existsSync(tempTargetPath)) {
+      fs.renameSync(tempTargetPath, finalDiskPath);
+    }
+
+    const realSizeBytes = downloadResult.size || (fs.existsSync(finalDiskPath) ? fs.statSync(finalDiskPath).size : 0);
     const sizeFormatted = realSizeBytes >= 1024 * 1024
       ? `${(realSizeBytes / (1024 * 1024)).toFixed(1)} MB`
       : `${(realSizeBytes / 1024).toFixed(1)} KB`;
@@ -159,12 +236,12 @@ router.post('/url', async (req, res) => {
     const fileId = `file_url_${Date.now()}`;
     const relativePath = `/api/files/uploads-serve/user_demo-user-123/${encodeURIComponent(timestampedName)}`;
 
-    const isZip = /\.(zip|rar|7z|iso|tar|gz)$/i.test(finalName);
-    const isImg = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(finalName);
-    const isVid = /\.(mp4|mkv|avi|webm|mov)$/i.test(finalName);
-    const isAud = /\.(mp3|wav|ogg|flac|m4a)$/i.test(finalName);
+    const isZip = /\.(zip|rar|7z|iso|tar|gz)$/i.test(finalName) || (downloadResult.contentType && downloadResult.contentType.includes('zip'));
+    const isImg = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(finalName) || (downloadResult.contentType && downloadResult.contentType.includes('image'));
+    const isVid = /\.(mp4|mkv|avi|webm|mov)$/i.test(finalName) || (downloadResult.contentType && downloadResult.contentType.includes('video'));
+    const isAud = /\.(mp3|wav|ogg|flac|m4a)$/i.test(finalName) || (downloadResult.contentType && downloadResult.contentType.includes('audio'));
     const fileType = isZip ? 'archive' : isImg ? 'image' : isVid ? 'video' : isAud ? 'audio' : 'document';
-    const mimeType = downloadResult.contentType || getMimeType(finalName);
+    const mimeType = isZip ? 'application/zip' : (downloadResult.contentType || getMimeType(finalName));
 
     const file = {
       id: fileId,
