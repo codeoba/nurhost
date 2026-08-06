@@ -33,52 +33,95 @@ function getMimeType(filename) {
 router.get('/inspect/:fileId', async (req, res) => {
   try {
     const { fileId } = req.params;
-    let fileRecord = null;
+    const decodedFileId = decodeURIComponent(fileId);
+    const uploadsBase = path.join(__dirname, '../uploads');
 
-    if (prisma && prisma.file) {
-      try {
-        fileRecord = await prisma.file.findUnique({ where: { id: fileId } });
-      } catch (err) {
-        console.warn('Prisma query failed, checking uploads folder:', err.message);
+    let zipPath = null;
+
+    // Recursive search across uploads and subdirectories
+    function searchZip(dir) {
+      if (!fs.existsSync(dir)) return null;
+      const items = fs.readdirSync(dir);
+      for (const item of items) {
+        const full = path.join(dir, item);
+        const stat = fs.statSync(full);
+        if (stat.isDirectory()) {
+          const found = searchZip(full);
+          if (found) return found;
+        } else if (
+          item === decodedFileId ||
+          item.endsWith(decodedFileId) ||
+          item.includes(decodedFileId) ||
+          item.toLowerCase().includes(decodedFileId.toLowerCase().replace(/[\s\-_()]+/g, ''))
+        ) {
+          if (full.endsWith('.zip') || item.includes('.zip')) {
+            return full;
+          }
+        }
       }
+      return null;
     }
 
-    // Fallback search in server/uploads or mock zip
-    let zipPath = fileRecord?.path;
-    if (!zipPath || !fs.existsSync(zipPath)) {
-      const uploadsDir = path.join(__dirname, '../uploads');
-      const files = fs.readdirSync(uploadsDir);
-      const target = files.find(f => f.includes(fileId) || f.endsWith('.zip'));
-      if (target) {
-        zipPath = path.join(uploadsDir, target);
+    zipPath = searchZip(uploadsBase);
+
+    // Fallback: search for the latest .zip file on disk
+    if (!zipPath) {
+      function findLatestZip(dir) {
+        if (!fs.existsSync(dir)) return null;
+        let newest = null;
+        let newestTime = 0;
+        const items = fs.readdirSync(dir);
+        for (const item of items) {
+          const full = path.join(dir, item);
+          const stat = fs.statSync(full);
+          if (stat.isDirectory()) {
+            const subZip = findLatestZip(full);
+            if (subZip && subZip.time > newestTime) {
+              newest = subZip.path;
+              newestTime = subZip.time;
+            }
+          } else if (item.endsWith('.zip')) {
+            if (stat.mtimeMs > newestTime) {
+              newest = full;
+              newestTime = stat.mtimeMs;
+            }
+          }
+        }
+        return newest ? { path: newest, time: newestTime } : null;
       }
+
+      const latestObj = findLatestZip(uploadsBase);
+      if (latestObj) zipPath = latestObj.path;
     }
 
     if (!zipPath || !fs.existsSync(zipPath)) {
-      return res.status(404).json({ error: 'Physical zip file not found on disk' });
+      return res.status(404).json({ success: false, error: 'Physical zip file not found on disk' });
     }
 
     const zip = new AdmZip(zipPath);
     const zipEntries = zip.getEntries();
 
-    const entries = zipEntries.map((entry, index) => ({
-      index,
-      entryName: entry.entryName,
-      name: entry.name,
-      isDirectory: entry.isDirectory,
-      size: entry.header.size,
-      compressedSize: entry.header.compressedSize,
-      cleanName: sanitizeFilename(entry.name || 'unnamed')
-    }));
+    const entries = zipEntries
+      .filter(entry => !entry.isDirectory)
+      .map((entry, index) => ({
+        index,
+        entryName: entry.entryName,
+        name: entry.name || path.basename(entry.entryName),
+        isDirectory: entry.isDirectory,
+        size: entry.header.size,
+        compressedSize: entry.header.compressedSize,
+        cleanName: sanitizeFilename(entry.name || 'unnamed').cleanFilename
+      }));
 
     return res.json({
+      success: true,
       fileId,
       totalEntries: entries.length,
       entries
     });
   } catch (error) {
     console.error('Zip inspection error:', error);
-    return res.status(500).json({ error: 'Failed to inspect zip file', details: error.message });
+    return res.status(500).json({ success: false, error: 'Failed to inspect zip file', details: error.message });
   }
 });
 
@@ -86,21 +129,44 @@ router.get('/inspect/:fileId', async (req, res) => {
 router.post('/extract-selective', async (req, res) => {
   try {
     const { fileId, selectedIndices, targetFolderId } = req.body;
-    const fileRecord = await prisma.file.findUnique({ where: { id: fileId } });
+    const decodedFileId = decodeURIComponent(fileId);
+    const uploadsBase = path.join(__dirname, '../uploads');
 
-    if (!fileRecord) {
-      return res.status(404).json({ error: 'File not found' });
+    let zipPath = null;
+
+    function searchZip(dir) {
+      if (!fs.existsSync(dir)) return null;
+      const items = fs.readdirSync(dir);
+      for (const item of items) {
+        const full = path.join(dir, item);
+        const stat = fs.statSync(full);
+        if (stat.isDirectory()) {
+          const found = searchZip(full);
+          if (found) return found;
+        } else if (
+          item === decodedFileId ||
+          item.endsWith(decodedFileId) ||
+          item.includes(decodedFileId)
+        ) {
+          if (full.endsWith('.zip') || item.includes('.zip')) {
+            return full;
+          }
+        }
+      }
+      return null;
     }
 
-    if (!fs.existsSync(fileRecord.path)) {
-      return res.status(404).json({ error: 'Physical file not found on server' });
+    zipPath = searchZip(uploadsBase);
+
+    if (!zipPath || !fs.existsSync(zipPath)) {
+      return res.status(404).json({ success: false, error: 'Physical zip file not found on server disk' });
     }
 
-    const zip = new AdmZip(fileRecord.path);
+    const zip = new AdmZip(zipPath);
     const zipEntries = zip.getEntries();
 
     const extractedFiles = [];
-    const extractDir = path.join(process.cwd(), 'uploads', `extracted_${Date.now()}`);
+    const extractDir = path.join(__dirname, '../uploads/user_demo-user-123');
 
     if (!fs.existsSync(extractDir)) {
       fs.mkdirSync(extractDir, { recursive: true });
@@ -115,50 +181,49 @@ router.post('/extract-selective', async (req, res) => {
       if (!entry || entry.isDirectory) continue;
 
       const rawName = entry.name || path.basename(entry.entryName);
-      const cleanName = sanitizeFilename(rawName);
+      const cleanName = sanitizeFilename(rawName).cleanFilename;
+      const timestampedName = `${Date.now()}_${cleanName}`;
+      const targetPath = path.join(extractDir, timestampedName);
 
-      const targetPath = path.join(extractDir, cleanName);
       zip.extractEntryTo(entry, extractDir, false, true);
+
+      // Rename extracted entry to timestamped format
+      const defaultExtractedPath = path.join(extractDir, entry.name || path.basename(entry.entryName));
+      if (fs.existsSync(defaultExtractedPath) && defaultExtractedPath !== targetPath) {
+        fs.renameSync(defaultExtractedPath, targetPath);
+      }
 
       let stats = { size: entry.header.size };
       if (fs.existsSync(targetPath)) {
         stats = fs.statSync(targetPath);
       }
       const mimeType = getMimeType(cleanName);
+      const relativePath = `/api/files/uploads-serve/user_demo-user-123/${timestampedName}`;
 
-      const s3Url = await uploadToS3(targetPath, cleanName, fileRecord.userId || 'demo_user');
-
-      const dbFile = await prisma.file.create({
-        data: {
-          name: cleanName,
-          originalName: entry.name,
-          mimeType,
-          size: stats.size,
-          path: targetPath,
-          s3Url,
-          userId: fileRecord.userId || 'demo_user',
-          folderId: targetFolderId || fileRecord.folderId
-        }
+      extractedFiles.push({
+        id: `extracted_${Date.now()}_${idx}`,
+        name: cleanName,
+        originalFilename: cleanName,
+        cleanFilename: timestampedName,
+        mimeType,
+        size: stats.size,
+        sizeFormatted: stats.size >= 1024 * 1024 ? `${(stats.size / (1024 * 1024)).toFixed(1)} MB` : `${(stats.size / 1024).toFixed(1)} KB`,
+        storagePath: relativePath,
+        url: relativePath,
+        folderId: targetFolderId || null,
+        updatedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
       });
-
-      extractedFiles.push(dbFile);
     }
 
-    await prisma.extractionJob.create({
-      data: {
-        zipFileId: fileId,
-        extractedFiles: JSON.stringify(extractedFiles.map(f => f.name)),
-        status: 'COMPLETED'
-      }
-    });
-
     return res.json({
-      message: `Successfully extracted ${extractedFiles.length} file(s)`,
+      success: true,
+      message: `Mafaili ${extractedFiles.length} yametolewa kikamilifu!`,
       extractedFiles
     });
   } catch (error) {
     console.error('Selective extraction error:', error);
-    return res.status(500).json({ error: 'Zip extraction failed', details: error.message });
+    return res.status(500).json({ success: false, error: 'Zip extraction failed', details: error.message });
   }
 });
 

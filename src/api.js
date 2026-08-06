@@ -121,27 +121,30 @@ export async function createNewTextFile(filename, content) {
 
 export const createTextFile = createNewTextFile;
 
-export async function inspectZipFile(fileId) {
+export async function inspectZipFile(fileIdOrName) {
   try {
-    const res = await fetch(`${API_BASE_URL}/extract/inspect/${fileId}`);
+    const targetQuery = encodeURIComponent(fileIdOrName);
+    const res = await fetch(`${API_BASE_URL}/extract/inspect/${targetQuery}`);
     const data = await safeJsonParse(res);
-    return data || { success: true, files: [{ name: 'index.html', size: 1024, index: 0 }] };
+    if (res.ok && data && data.success) return data;
+    return { success: false, entries: [], files: [] };
   } catch (error) {
-    return { success: true, files: [{ name: 'index.html', size: 1024, index: 0 }] };
+    return { success: false, entries: [], files: [] };
   }
 }
 
-export async function extractSelectiveZip(fileId, selectedIndices, targetFolderId = null) {
+export async function extractSelectiveZip(fileIdOrName, selectedIndices, targetFolderId = null) {
   try {
     const res = await fetch(`${API_BASE_URL}/extract/extract-selective`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fileId, selectedIndices, targetFolderId }),
+      body: JSON.stringify({ fileId: fileIdOrName, selectedIndices, targetFolderId }),
     });
     const data = await safeJsonParse(res);
-    return data || { success: true, extracted: selectedIndices };
+    if (res.ok && data && data.success) return data;
+    return { success: false, error: (data && data.error) || 'Imeshindwa kutatua zip' };
   } catch (error) {
-    return { success: true, extracted: selectedIndices };
+    return { success: false, error: error.message };
   }
 }
 

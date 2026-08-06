@@ -19,9 +19,11 @@ export default function ZipUnzipModal({ isOpen, onClose, zipFile, onExtracted })
     setLoading(true);
     setStatusMessage(null);
     try {
-      const data = await inspectZipFile(zipFile.id);
-      setEntries(data.entries || []);
-      const nonDirIndices = (data.entries || [])
+      const targetQuery = zipFile.cleanFilename || zipFile.name || zipFile.id;
+      const data = await inspectZipFile(targetQuery);
+      const list = data.entries || data.files || [];
+      setEntries(list);
+      const nonDirIndices = list
         .filter(e => !e.isDirectory)
         .map(e => e.index);
       setSelectedIndices(nonDirIndices);
@@ -60,15 +62,20 @@ export default function ZipUnzipModal({ isOpen, onClose, zipFile, onExtracted })
     setStatusMessage(null);
 
     try {
-      const res = await extractSelectiveZip(zipFile.id, selectedIndices);
-      setStatusMessage({
-        type: 'success',
-        text: res.message || `Mchakato umefanikiwa! Mafaili ${res.extractedFiles?.length} yametolewa.`
-      });
-      if (onExtracted) onExtracted(res.extractedFiles);
-      setTimeout(() => {
-        onClose();
-      }, 1200);
+      const targetQuery = zipFile.cleanFilename || zipFile.name || zipFile.id;
+      const res = await extractSelectiveZip(targetQuery, selectedIndices);
+      if (res.success && res.extractedFiles) {
+        setStatusMessage({
+          type: 'success',
+          text: res.message || `Mchakato umefanikiwa! Mafaili ${res.extractedFiles.length} yametolewa.`
+        });
+        if (onExtracted) onExtracted(res.extractedFiles);
+        setTimeout(() => {
+          onClose();
+        }, 1200);
+      } else {
+        setStatusMessage({ type: 'error', text: res.error || 'Mchakato wa kutatua zip umefeli.' });
+      }
     } catch (err) {
       console.error(err);
       setStatusMessage({ type: 'error', text: 'Mchakato wa kutatua zip umefeli. Jaribu tena.' });
