@@ -136,18 +136,14 @@ router.get("/", (req, res) => {
       }
 
       const isImg = !isZip && /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)$/i.test(originalName);
-      const isVideo = !isZip && /\.(mp4|mkv|webm|avi|mov|flv)$/i.test(originalName);
-      const isAudio = !isZip && /\.(mp3|wav|ogg|flac|m4a|aac)$/i.test(originalName);
+      const isVideo = !isZip && /\.(mp4|mkv|webm|avi|mov|flv|wmv|3gp)$/i.test(originalName);
+      const isAudio = !isZip && /\.(mp3|wav|ogg|flac|m4a|aac|opus|wma)$/i.test(originalName);
       const isCode = !isZip && (/\.(txt|htaccess|env|conf|ini|json|js|jsx|ts|tsx|html|css|py|php|sql|sh|md|xml|yml|yaml)$/i.test(originalName) || originalName.includes('htaccess') || originalName.includes('env'));
 
       const type = isZip ? 'archive' : isImg ? 'image' : isVideo ? 'video' : isAudio ? 'audio' : isCode ? 'code' : 'document';
       const mimeType = isZip ? 'application/zip' : isImg ? 'image/jpeg' : isVideo ? 'video/mp4' : isAudio ? 'audio/mpeg' : 'application/octet-stream';
 
-      let displaySize = stats.size;
-      if (displaySize < 50000 && (fname.toLowerCase().includes('torrent') || fname.toLowerCase().includes('driver') || fname.toLowerCase().includes('booster') || fname.toLowerCase().includes('cracked') || fname.toLowerCase().includes('setup'))) {
-        displaySize = 38797312; // 37.0 MB
-      }
-
+      const displaySize = stats.size;
       const sizeFormatted = displaySize >= 1024 * 1024
         ? `${(displaySize / (1024 * 1024)).toFixed(1)} MB`
         : `${(displaySize / 1024).toFixed(1)} KB`;
@@ -186,17 +182,7 @@ router.get("/storage-info", (req, res) => {
 // GET /api/files/:id/versions - Get file version history
 router.get("/:id/versions", (req, res) => {
   const { id } = req.params;
-  const history = fileVersionsStore.get(id) || [
-    {
-      id: `v-${id}-1`,
-      fileId: id,
-      versionNumber: 1,
-      filename: "original_file",
-      changeSummary: "Initial Upload",
-      sizeFormatted: "1.2 MB",
-      createdAt: new Date(Date.now() - 86400000).toISOString()
-    }
-  ];
+  const history = fileVersionsStore.get(id) || [];
   res.json({ success: true, versions: history });
 });
 

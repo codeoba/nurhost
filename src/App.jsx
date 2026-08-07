@@ -390,6 +390,7 @@ export default function App() {
           activeNav={activeNav}
           setActiveNav={setActiveNav}
           folders={folders}
+          files={files}
           currentFolderId={currentFolderId}
           setCurrentFolderId={setCurrentFolderId}
           onOpenUpload={() => setShowUploadModal(true)}

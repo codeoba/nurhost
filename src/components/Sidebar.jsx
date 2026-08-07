@@ -25,6 +25,7 @@ export default function Sidebar({
   activeNav, 
   setActiveNav, 
   folders, 
+  files = [],
   currentFolderId, 
   setCurrentFolderId,
   onOpenUpload,
@@ -36,10 +37,12 @@ export default function Sidebar({
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [expandFolders, setExpandFolders] = useState(true);
 
-  // Compute stats
-  const usedMB = (STORAGE_STATS.usedBytes / (1024 * 1024)).toFixed(1);
-  const totalGB = (STORAGE_STATS.totalBytes / (1024 * 1024 * 1024)).toFixed(0);
-  const percentage = ((STORAGE_STATS.usedBytes / STORAGE_STATS.totalBytes) * 100).toFixed(1);
+  // Compute live real storage stats from uploaded files
+  const totalUsedBytes = (files || []).reduce((acc, f) => acc + Number(f.size || 0), 0);
+  const totalLimitBytes = 16106127360; // 15 GB
+  const usedMB = (totalUsedBytes / (1024 * 1024)).toFixed(1);
+  const totalGB = (totalLimitBytes / (1024 * 1024 * 1024)).toFixed(0);
+  const percentage = Math.min(100, ((totalUsedBytes / totalLimitBytes) * 100)).toFixed(1);
 
   return (
     <aside style={{
