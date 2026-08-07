@@ -40,16 +40,28 @@ export function detectFileType(filename = '', mimeType = '') {
   return 'document';
 }
 
-export function resolveFileUrl(url, cleanFilename = '', name = '') {
+export function resolveFileUrl(url = '', cleanFilename = '', name = '') {
   if (url && url.startsWith('blob:')) return url;
+
+  // 1. Prioritize cleanFilename (actual physical file on server disk)
+  if (cleanFilename && cleanFilename.trim()) {
+    const clean = cleanFilename.replace(/^\/api\/uploads\/user_demo-user-123\//, '').replace(/^\/uploads\/user_demo-user-123\//, '').trim();
+    return `/api/files/uploads-serve/user_demo-user-123/${encodeURIComponent(clean)}`;
+  }
+
+  // 2. Local server paths
+  if (url && (url.startsWith('/api/') || url.startsWith('/uploads/'))) {
+    const clean = url.split('/').pop();
+    return `/api/files/uploads-serve/user_demo-user-123/${encodeURIComponent(clean)}`;
+  }
+
+  // 3. Fallback for external URLs only if no cleanFilename is available
   if (url && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:'))) {
     return url;
   }
 
-  // Extract filename target from cleanFilename, url or name
-  let target = cleanFilename || (url && url !== '#' ? url.split('/').pop() : '') || name;
+  const target = (url && url !== '#' ? url.split('/').pop() : '') || name;
   if (target) {
-    target = target.replace(/^\/api\/uploads\/user_demo-user-123\//, '').replace(/^\/uploads\/user_demo-user-123\//, '');
     return `/api/files/uploads-serve/user_demo-user-123/${encodeURIComponent(target)}`;
   }
   return '';

@@ -89,6 +89,7 @@ export default function AudioPlayerModal({ file, onClose, onShare, onToast }) {
       >
         <audio
           ref={audioRef}
+          key={audioSrc}
           src={audioSrc}
           onTimeUpdate={handleTimeUpdate}
           onEnded={() => setIsPlaying(false)}
