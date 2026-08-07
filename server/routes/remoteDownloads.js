@@ -235,6 +235,12 @@ router.post('/url', async (req, res) => {
       }
     }
 
+    // Mandatory extension check: Ensure zip archives ALWAYS end with .zip
+    const isZipByMime = downloadResult.contentType && downloadResult.contentType.includes('zip');
+    if ((isZipByMime || ext === '.zip') && !/\.(zip|rar|7z|iso|tar|gz)$/i.test(finalName)) {
+      finalName = `${finalName}.zip`;
+    }
+
     const cleanFinalFilename = finalName.replace(/[^\w\.\-\s\(\)\[\]]/gi, '_').trim() || `file_${Date.now()}`;
     const timestampedName = `${Date.now()}_${cleanFinalFilename}`;
     const finalDiskPath = path.join(uploadsDir, timestampedName);
@@ -252,10 +258,10 @@ router.post('/url', async (req, res) => {
     const fileId = `file_url_${Date.now()}`;
     const relativePath = `/api/files/uploads-serve/user_demo-user-123/${encodeURIComponent(timestampedName)}`;
 
-    const isZip = /\.(zip|rar|7z|iso|tar|gz)$/i.test(finalName) || (downloadResult.contentType && downloadResult.contentType.includes('zip'));
-    const isImg = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(finalName) || (downloadResult.contentType && downloadResult.contentType.includes('image'));
-    const isVid = /\.(mp4|mkv|avi|webm|mov)$/i.test(finalName) || (downloadResult.contentType && downloadResult.contentType.includes('video'));
-    const isAud = /\.(mp3|wav|ogg|flac|m4a)$/i.test(finalName) || (downloadResult.contentType && downloadResult.contentType.includes('audio'));
+    const isZip = /\.(zip|rar|7z|iso|tar|gz)$/i.test(finalName) || isZipByMime;
+    const isImg = !isZip && (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(finalName) || (downloadResult.contentType && downloadResult.contentType.includes('image')));
+    const isVid = !isZip && (/\.(mp4|mkv|avi|webm|mov)$/i.test(finalName) || (downloadResult.contentType && downloadResult.contentType.includes('video')));
+    const isAud = !isZip && (/\.(mp3|wav|ogg|flac|m4a)$/i.test(finalName) || (downloadResult.contentType && downloadResult.contentType.includes('audio')));
     const fileType = isZip ? 'archive' : isImg ? 'image' : isVid ? 'video' : isAud ? 'audio' : 'document';
     const mimeType = isZip ? 'application/zip' : (downloadResult.contentType || getMimeType(finalName));
 

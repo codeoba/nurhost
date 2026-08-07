@@ -97,6 +97,25 @@ router.get("/uploads-serve/:userDir/:filename", (req, res) => {
     return res.status(500).send("Error serving file");
   }
 });
+// Helper to check if file on disk is a Zip archive by reading PK magic bytes
+function isZipFileOnDisk(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return false;
+    const stat = fs.statSync(filePath);
+    if (stat.isDirectory() || stat.size < 4) return false;
+
+    const fd = fs.openSync(filePath, 'r');
+    const buffer = Buffer.alloc(4);
+    fs.readSync(fd, buffer, 0, 4, 0);
+    fs.closeSync(fd);
+
+    return buffer[0] === 0x50 && buffer[1] === 0x4B; // PK magic bytes
+  } catch (e) {
+    return false;
+  }
+}
+
+// GET /api/files - Get List of All Files
 router.get("/", (req, res) => {
   try {
     if (!fs.existsSync(uploadsDir)) {
@@ -106,14 +125,23 @@ router.get("/", (req, res) => {
     const files = fileList.map((fname, i) => {
       const fullPath = path.join(uploadsDir, fname);
       const stats = fs.statSync(fullPath);
-      const originalName = fname.replace(/^\d+_/, '');
-      const isImg = /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)$/i.test(originalName);
-      const isVideo = /\.(mp4|mkv|webm|avi|mov|flv)$/i.test(originalName);
-      const isAudio = /\.(mp3|wav|ogg|flac|m4a|aac)$/i.test(originalName);
-      const isZip = /\.(zip|rar|7z|tar|gz|bz2|iso)$/i.test(originalName) || originalName.toLowerCase().includes('pro') || originalName.toLowerCase().includes('crack') || originalName.toLowerCase().includes('setup') || originalName.toLowerCase().includes('driver') || originalName.toLowerCase().includes('booster') || originalName.toLowerCase().includes('iobit');
-      const isCode = /\.(txt|htaccess|env|conf|ini|json|js|jsx|ts|tsx|html|css|py|php|sql|sh|md|xml|yml|yaml)$/i.test(originalName) || originalName.includes('htaccess') || originalName.includes('env');
-      const type = isImg ? 'image' : isVideo ? 'video' : isAudio ? 'audio' : isZip ? 'archive' : isCode ? 'code' : 'document';
-      const mimeType = isImg ? 'image/jpeg' : isVideo ? 'video/mp4' : isAudio ? 'audio/mpeg' : isZip ? 'application/zip' : 'application/octet-stream';
+      let originalName = fname.replace(/^\d+_/, '');
+
+      const isZipOnDisk = isZipFileOnDisk(fullPath);
+      const isZipByName = /\.(zip|rar|7z|tar|gz|bz2|iso)$/i.test(originalName) || originalName.toLowerCase().includes('pro') || originalName.toLowerCase().includes('crack') || originalName.toLowerCase().includes('setup') || originalName.toLowerCase().includes('driver') || originalName.toLowerCase().includes('booster') || originalName.toLowerCase().includes('iobit');
+      const isZip = isZipOnDisk || isZipByName;
+
+      if (isZip && !/\.(zip|rar|7z|iso|tar|gz)$/i.test(originalName)) {
+        originalName = `${originalName}.zip`;
+      }
+
+      const isImg = !isZip && /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)$/i.test(originalName);
+      const isVideo = !isZip && /\.(mp4|mkv|webm|avi|mov|flv)$/i.test(originalName);
+      const isAudio = !isZip && /\.(mp3|wav|ogg|flac|m4a|aac)$/i.test(originalName);
+      const isCode = !isZip && (/\.(txt|htaccess|env|conf|ini|json|js|jsx|ts|tsx|html|css|py|php|sql|sh|md|xml|yml|yaml)$/i.test(originalName) || originalName.includes('htaccess') || originalName.includes('env'));
+
+      const type = isZip ? 'archive' : isImg ? 'image' : isVideo ? 'video' : isAudio ? 'audio' : isCode ? 'code' : 'document';
+      const mimeType = isZip ? 'application/zip' : isImg ? 'image/jpeg' : isVideo ? 'video/mp4' : isAudio ? 'audio/mpeg' : 'application/octet-stream';
 
       let displaySize = stats.size;
       if (displaySize < 50000 && (fname.toLowerCase().includes('torrent') || fname.toLowerCase().includes('driver') || fname.toLowerCase().includes('booster') || fname.toLowerCase().includes('cracked') || fname.toLowerCase().includes('setup'))) {
