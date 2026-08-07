@@ -64,13 +64,8 @@ export default function App() {
   // Fetch real uploaded files from server disk storage on mount
   useEffect(() => {
     fetchFilesAndFolders().then(data => {
-      if (data && data.success && Array.isArray(data.files) && data.files.length > 0) {
-        setFiles(prev => {
-          const apiFileNames = new Set(data.files.map(f => f.originalFilename || f.name));
-          // keep initial mock/local files that aren't on server yet
-          const nonDuplicateLocal = prev.filter(f => !apiFileNames.has(f.name) && !apiFileNames.has(f.originalFilename));
-          return [...data.files, ...nonDuplicateLocal];
-        });
+      if (data && data.success && Array.isArray(data.files)) {
+        setFiles(data.files);
       }
     }).catch(err => console.warn("Could not sync server files:", err));
   }, []);
@@ -296,24 +291,33 @@ export default function App() {
   };
 
   const handleUploadComplete = (newFiles) => {
-    const created = newFiles.map(nf => ({
-      id: nf.id,
-      name: nf.name,
-      type: nf.name.endsWith('.mp3') ? 'audio' : 'document',
-      mimeType: 'audio/mpeg',
-      size: nf.size,
-      sizeFormatted: nf.sizeFormatted,
-      url: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=lofi-study-112191.mp3',
-      shareCode: `code-${Date.now()}`,
-      shareUrl: `https://nurhost.app/drive/s/code-${Date.now()}`,
-      folderId: currentFolderId,
-      isStarred: false,
-      isShared: false,
-      inTrash: false,
-      updatedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      owner: { name: 'Administrator', email: 'admin@nurhost.app', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100' }
-    }));
+    const created = newFiles.map(nf => {
+      const detectedType = detectFileType(nf.name || nf.originalFilename, nf.mimeType || '');
+      const clean = nf.cleanFilename || nf.name || nf.originalFilename;
+      const fileUrl = nf.url || nf.storagePath || `/api/files/uploads-serve/user_demo-user-123/${encodeURIComponent(clean)}`;
+
+      return {
+        id: nf.id || `file_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        name: nf.name || nf.originalFilename || 'Uploaded File',
+        originalFilename: nf.originalFilename || nf.name,
+        cleanFilename: clean,
+        type: nf.type || detectedType,
+        mimeType: nf.mimeType || (detectedType === 'audio' ? 'audio/mpeg' : 'application/octet-stream'),
+        size: nf.size || 0,
+        sizeFormatted: nf.sizeFormatted || '0.0 KB',
+        url: fileUrl,
+        storagePath: fileUrl,
+        shareCode: nf.shareCode || `code-${Date.now()}`,
+        shareUrl: nf.shareUrl || `https://nurhost.app/drive/s/code-${Date.now()}`,
+        folderId: currentFolderId,
+        isStarred: false,
+        isShared: false,
+        inTrash: false,
+        updatedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        owner: { name: 'Administrator', email: 'admin@nurhost.app', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100' }
+      };
+    });
 
     setFiles(prev => [...created, ...prev]);
     triggerToast(`Successfully uploaded ${newFiles.length} file(s) to NurHost!`);
