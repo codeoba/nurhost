@@ -5,7 +5,7 @@ import DriveToolbar from './components/DriveToolbar';
 import FolderGrid from './components/FolderGrid';
 import FileGrid from './components/FileGrid';
 import AudioPlayerModal from './components/AudioPlayerModal';
-import { VideoPlayerModal, ImageViewerModal, CodeViewerModal, FileDetailModal } from './components/MediaViewerModals';
+import { VideoPlayerModal, ImageViewerModal, CodeViewerModal, FileDetailModal, PdfViewerModal, RichDocumentViewerModal } from './components/MediaViewerModals';
 import ShareModal from './components/ShareModal';
 import PublicShareView from './components/PublicShareView';
 import UploadModal from './components/UploadModal';
@@ -85,6 +85,8 @@ export default function App() {
   const [previewVideoFile, setPreviewVideoFile] = useState(null);
   const [previewImageFile, setPreviewImageFile] = useState(null);
   const [previewCodeFile, setPreviewCodeFile] = useState(null);
+  const [previewPdfFile, setPreviewPdfFile] = useState(null);
+  const [previewDocumentFile, setPreviewDocumentFile] = useState(null);
   const [previewDetailFile, setPreviewDetailFile] = useState(null);
   const [shareFile, setShareFile] = useState(null);
   const [renameTarget, setRenameTarget] = useState(null); // { item, isFolder }
@@ -181,10 +183,23 @@ export default function App() {
   // Handlers
   const handlePreviewFile = (file) => {
     const name = (file.name || file.originalFilename || '').toLowerCase();
+    const ext = (name.split('.').pop() || '').toLowerCase();
 
-    // 1. Strict guard: if filename ends with zip/rar/7z/tar/iso, ALWAYS route to ZipUnzipModal!
+    // 1. Strict guard: Archive files
     if (/\.(zip|rar|7z|tar|gz|bz2|iso)$/i.test(name) || name.endsWith('.zip')) {
       setActiveZipFile(file);
+      return;
+    }
+
+    // 2. PDF Reader Guard
+    if (ext === 'pdf' || (file.mimeType && file.mimeType.includes('pdf'))) {
+      setPreviewPdfFile(file);
+      return;
+    }
+
+    // 3. Rich Document Reader Guard (Word, Excel, PowerPoint, EPUB, RTF)
+    if (['docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt', 'epub', 'rtf', 'odt', 'ods', 'odp'].includes(ext)) {
+      setPreviewDocumentFile(file);
       return;
     }
 
@@ -198,7 +213,7 @@ export default function App() {
       setPreviewVideoFile(file);
     } else if (detected === 'image') {
       setPreviewImageFile(file);
-    } else if (detected === 'code') {
+    } else if (detected === 'code' || ['txt', 'csv', 'md', 'log', 'json', 'xml'].includes(ext)) {
       setPreviewCodeFile(file);
     } else {
       setPreviewDetailFile(file);
@@ -526,6 +541,23 @@ export default function App() {
           file={previewCodeFile}
           onClose={() => setPreviewCodeFile(null)}
           onToast={triggerToast}
+        />
+      )}
+
+      {previewPdfFile && (
+        <PdfViewerModal
+          file={previewPdfFile}
+          onClose={() => setPreviewPdfFile(null)}
+          onShare={(f) => setShareFile(f)}
+          onToast={triggerToast}
+        />
+      )}
+
+      {previewDocumentFile && (
+        <RichDocumentViewerModal
+          file={previewDocumentFile}
+          onClose={() => setPreviewDocumentFile(null)}
+          onShare={(f) => setShareFile(f)}
         />
       )}
 

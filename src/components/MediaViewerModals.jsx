@@ -240,3 +240,124 @@ export function FileDetailModal({ file, onClose, onShare, onToast }) {
     </div>
   );
 }
+
+export function PdfViewerModal({ file, onClose, onShare, onToast }) {
+  const pdfUrl = resolveFileUrl(file.url, file.cleanFilename, file.name);
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div 
+        className="modal-card animate-slide-up"
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: '980px', width: '95vw', height: '90vh', background: 'var(--bg-secondary)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+      >
+        <div className="modal-header" style={{ padding: '12px 20px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-tertiary)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+            <span className="badge" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', fontWeight: '700' }}>
+              📄 PDF Reader
+            </span>
+            <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {file.name}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <a
+              href={pdfUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-ghost"
+              style={{ fontSize: '12px', color: 'var(--accent-cyan)' }}
+            >
+              Open New Tab ↗
+            </a>
+            <button onClick={onClose} className="btn btn-ghost btn-icon">
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* Embedded Interactive PDF Viewer */}
+        <div style={{ flex: 1, background: '#1e293b', position: 'relative' }}>
+          <iframe
+            src={`${pdfUrl}#toolbar=1`}
+            title={file.name}
+            style={{ width: '100%', height: '100%', border: 'none' }}
+          />
+        </div>
+
+        <div className="modal-footer" style={{ justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid var(--border-color)' }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+            Size: <strong style={{ color: '#ef4444' }}>{file.sizeFormatted}</strong> • PDF Document Engine
+          </span>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => { onClose(); onShare(file); }} className="btn btn-secondary" style={{ fontSize: '13px' }}>
+              <Share2 size={16} /> Share Book
+            </button>
+            <a href={pdfUrl} download={file.name} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ fontSize: '13px', textDecoration: 'none', background: '#ef4444' }}>
+              <Download size={16} /> Download PDF
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function RichDocumentViewerModal({ file, onClose, onShare }) {
+  const fileUrl = resolveFileUrl(file.url, file.cleanFilename, file.name);
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  
+  // Office Online Web Viewer URL for docx, xlsx, pptx
+  const absoluteHttpUrl = window.location.origin + fileUrl;
+  const officeViewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(absoluteHttpUrl)}`;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div 
+        className="modal-card animate-slide-up"
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: '960px', width: '95vw', height: '88vh', background: 'var(--bg-secondary)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+      >
+        <div className="modal-header" style={{ padding: '12px 20px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-tertiary)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+            <span className="badge badge-indigo" style={{ textTransform: 'uppercase', fontWeight: '700' }}>
+              📖 {ext} Document Reader
+            </span>
+            <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {file.name}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button onClick={onClose} className="btn btn-ghost btn-icon">
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+
+        <div style={{ flex: 1, background: '#0f172a', position: 'relative' }}>
+          <iframe
+            src={officeViewerUrl}
+            title={file.name}
+            style={{ width: '100%', height: '100%', border: 'none' }}
+          />
+        </div>
+
+        <div className="modal-footer" style={{ justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid var(--border-color)' }}>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+            Format: <strong>.{ext.toUpperCase()}</strong> • Size: <strong>{file.sizeFormatted}</strong>
+          </span>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={() => { onClose(); onShare(file); }} className="btn btn-secondary" style={{ fontSize: '13px' }}>
+              <Share2 size={16} /> Share Document
+            </button>
+            <a href={fileUrl} download={file.name} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ fontSize: '13px', textDecoration: 'none' }}>
+              <Download size={16} /> Download .{ext.toUpperCase()}
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

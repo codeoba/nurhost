@@ -8,6 +8,10 @@ import {
   Archive, 
   Code, 
   File,
+  FileSpreadsheet,
+  Presentation,
+  BookOpen,
+  FileCode,
   MoreVertical, 
   Star, 
   Share2, 
@@ -23,6 +27,19 @@ import {
   History,
   FolderOpen
 } from 'lucide-react';
+
+export function getDocumentSubtype(filename = '', mimeType = '') {
+  const ext = (filename.split('.').pop() || '').toLowerCase();
+  const mime = (mimeType || '').toLowerCase();
+
+  if (ext === 'pdf' || mime.includes('pdf')) return 'pdf';
+  if (['doc', 'docx', 'odt', 'rtf'].includes(ext) || mime.includes('word')) return 'word';
+  if (['xls', 'xlsx', 'csv', 'ods'].includes(ext) || mime.includes('excel') || mime.includes('spreadsheet') || mime.includes('csv')) return 'excel';
+  if (['ppt', 'pptx', 'odp'].includes(ext) || mime.includes('powerpoint') || mime.includes('presentation')) return 'ppt';
+  if (['epub', 'mobi', 'azw3'].includes(ext) || mime.includes('epub')) return 'epub';
+  if (['txt', 'md', 'log', 'json', 'xml'].includes(ext) || mime.includes('text/plain')) return 'text';
+  return 'general';
+}
 
 export default function FileGrid({ 
   files, 
@@ -43,28 +60,48 @@ export default function FileGrid({
 
   if (!files || files.length === 0) return null;
 
-  const getFileIcon = (type) => {
-    switch (type) {
-      case 'audio': return <Music size={22} color="#3b82f6" />;
-      case 'video': return <Video size={22} color="#8b5cf6" />;
-      case 'image': return <ImageIcon size={22} color="#ec4899" />;
-      case 'document': return <FileText size={22} color="#10b981" />;
-      case 'archive': return <Archive size={22} color="#f59e0b" />;
-      case 'code': return <Code size={22} color="#06b6d4" />;
-      default: return <File size={22} color="var(--text-muted)" />;
-    }
+  const getFileIcon = (file) => {
+    const type = typeof file === 'string' ? file : file.type;
+    const name = typeof file === 'string' ? '' : (file.name || file.originalFilename || '');
+    const mime = typeof file === 'string' ? '' : file.mimeType;
+
+    if (type === 'audio') return <Music size={28} color="#3b82f6" />;
+    if (type === 'video') return <Video size={28} color="#8b5cf6" />;
+    if (type === 'image') return <ImageIcon size={28} color="#ec4899" />;
+    if (type === 'archive') return <Archive size={28} color="#f59e0b" />;
+    if (type === 'code') return <Code size={28} color="#06b6d4" />;
+
+    const sub = getDocumentSubtype(name, mime);
+    if (sub === 'pdf') return <FileText size={28} color="#ef4444" />;
+    if (sub === 'word') return <FileText size={28} color="#2563eb" />;
+    if (sub === 'excel') return <FileSpreadsheet size={28} color="#10b981" />;
+    if (sub === 'ppt') return <Presentation size={28} color="#f97316" />;
+    if (sub === 'epub') return <BookOpen size={28} color="#a855f7" />;
+    if (sub === 'text') return <FileCode size={28} color="#06b6d4" />;
+
+    return <FileText size={28} color="#10b981" />;
   };
 
-  const getFileColorBg = (type) => {
-    switch (type) {
-      case 'audio': return 'rgba(59, 130, 246, 0.12)';
-      case 'video': return 'rgba(139, 92, 246, 0.12)';
-      case 'image': return 'rgba(236, 72, 153, 0.12)';
-      case 'document': return 'rgba(16, 185, 129, 0.12)';
-      case 'archive': return 'rgba(245, 158, 11, 0.12)';
-      case 'code': return 'rgba(6, 182, 212, 0.12)';
-      default: return 'var(--bg-tertiary)';
-    }
+  const getFileColorBg = (file) => {
+    const type = typeof file === 'string' ? file : file.type;
+    const name = typeof file === 'string' ? '' : (file.name || file.originalFilename || '');
+    const mime = typeof file === 'string' ? '' : file.mimeType;
+
+    if (type === 'audio') return 'rgba(59, 130, 246, 0.12)';
+    if (type === 'video') return 'rgba(139, 92, 246, 0.12)';
+    if (type === 'image') return 'rgba(236, 72, 153, 0.12)';
+    if (type === 'archive') return 'rgba(245, 158, 11, 0.12)';
+    if (type === 'code') return 'rgba(6, 182, 212, 0.12)';
+
+    const sub = getDocumentSubtype(name, mime);
+    if (sub === 'pdf') return 'rgba(239, 68, 68, 0.15)';
+    if (sub === 'word') return 'rgba(37, 99, 235, 0.15)';
+    if (sub === 'excel') return 'rgba(16, 185, 129, 0.15)';
+    if (sub === 'ppt') return 'rgba(249, 115, 22, 0.15)';
+    if (sub === 'epub') return 'rgba(168, 85, 247, 0.15)';
+    if (sub === 'text') return 'rgba(6, 182, 212, 0.15)';
+
+    return 'rgba(16, 185, 129, 0.12)';
   };
 
   return (
@@ -82,6 +119,7 @@ export default function FileGrid({
         }}>
           {files.map((file) => {
             const isSelected = selectedFileIds.includes(file.id);
+            const docSub = getDocumentSubtype(file.name || file.originalFilename || '', file.mimeType);
 
             return (
               <div
@@ -102,7 +140,7 @@ export default function FileGrid({
                 {/* Media Preview Box */}
                 <div style={{
                   height: '140px',
-                  background: getFileColorBg(file.type),
+                  background: getFileColorBg(file),
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -145,7 +183,34 @@ export default function FileGrid({
                       </div>
                     </div>
                   ) : (
-                    getFileIcon(file.type)
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                      <div style={{
+                        width: '52px',
+                        height: '52px',
+                        borderRadius: '14px',
+                        background: 'rgba(255,255,255,0.08)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                      }}>
+                        {getFileIcon(file)}
+                      </div>
+                      {docSub !== 'general' && (
+                        <span className="badge" style={{
+                          fontSize: '10px',
+                          fontWeight: '800',
+                          letterSpacing: '0.5px',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          background: docSub === 'pdf' ? 'rgba(239, 68, 68, 0.25)' : docSub === 'word' ? 'rgba(37, 99, 235, 0.25)' : docSub === 'excel' ? 'rgba(16, 185, 129, 0.25)' : docSub === 'ppt' ? 'rgba(249, 115, 22, 0.25)' : docSub === 'epub' ? 'rgba(168, 85, 247, 0.25)' : 'rgba(6, 182, 212, 0.25)',
+                          color: docSub === 'pdf' ? '#ef4444' : docSub === 'word' ? '#3b82f6' : docSub === 'excel' ? '#10b981' : docSub === 'ppt' ? '#f97316' : docSub === 'epub' ? '#a855f7' : '#06b6d4',
+                          border: '1px solid currentColor'
+                        }}>
+                          {docSub.toUpperCase()} DOCUMENT
+                        </span>
+                      )}
+                    </div>
                   )}
 
                   {/* Select Checkbox Top Left */}
