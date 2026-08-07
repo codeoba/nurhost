@@ -79,8 +79,41 @@ function parseContentDispositionFilename(cd) {
   return '';
 }
 
+function getTitleFromZip(zipFilePath) {
+  try {
+    const AdmZip = require('adm-zip');
+    if (!fs.existsSync(zipFilePath)) return null;
+    const zip = new AdmZip(zipFilePath);
+    const entries = zip.getEntries();
+    if (!entries || entries.length === 0) return null;
+
+    for (const entry of entries) {
+      const parts = entry.entryName.split('/').filter(Boolean);
+      if (parts.length > 0) {
+        const rootName = parts[0];
+        if (rootName && rootName.length > 3 && !/^[0-9a-fA-F]{32,64}$/.test(rootName)) {
+          return rootName.endsWith('.zip') ? rootName : `${rootName}.zip`;
+        }
+      }
+    }
+
+    const firstFile = entries.find(e => !e.isDirectory);
+    if (firstFile) {
+      const bname = path.basename(firstFile.name || firstFile.entryName);
+      if (bname && bname.length > 3 && !/^[0-9a-fA-F]{32,64}$/.test(bname)) {
+        return `${path.parse(bname).name}.zip`;
+      }
+    }
+  } catch (e) {
+    console.warn('Zip title extraction note:', e.message);
+  }
+  return null;
+}
+
 function downloadUrlWithRedirects(targetUrl, targetPath, maxRedirects = 10) {
   return new Promise((resolve, reject) => {
+    let capturedFilename = '';
+
     function fetchUrl(currentUrl, redirectCount) {
       if (redirectCount > maxRedirects) {
         return reject(new Error('Too many HTTP redirects'));
@@ -100,6 +133,12 @@ function downloadUrlWithRedirects(targetUrl, targetPath, maxRedirects = 10) {
           'Accept': '*/*'
         }
       }, (res) => {
+        // Capture Content-Disposition header at every redirect step
+        const cdName = parseContentDispositionFilename(res.headers['content-disposition']);
+        if (cdName) {
+          capturedFilename = cdName;
+        }
+
         if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
           const redirectUrl = new URL(res.headers.location, currentUrl).href;
           return fetchUrl(redirectUrl, redirectCount + 1);
@@ -109,8 +148,6 @@ function downloadUrlWithRedirects(targetUrl, targetPath, maxRedirects = 10) {
           return reject(new Error(`HTTP Status Code ${res.statusCode}`));
         }
 
-        const dispositionFilename = parseContentDispositionFilename(res.headers['content-disposition']);
-
         const fileStream = fs.createWriteStream(targetPath);
         res.pipe(fileStream);
 
@@ -119,7 +156,7 @@ function downloadUrlWithRedirects(targetUrl, targetPath, maxRedirects = 10) {
             const size = fs.existsSync(targetPath) ? fs.statSync(targetPath).size : 0;
             resolve({
               size,
-              dispositionFilename,
+              dispositionFilename: capturedFilename || parseContentDispositionFilename(res.headers['content-disposition']),
               contentType: res.headers['content-type']
             });
           });
@@ -186,6 +223,15 @@ router.post('/url', async (req, res) => {
       if (mimeExt) {
         ext = mimeExt;
         finalName = `${finalName}${mimeExt}`;
+      }
+    }
+
+    // Hex Hash Filename Guard: If name is a hex hash, extract title from ZIP content
+    const baseWithoutExt = path.parse(finalName).name;
+    if (/^[0-9a-fA-F]{32,64}$/.test(baseWithoutExt) && (ext === '.zip' || (downloadResult.contentType && downloadResult.contentType.includes('zip')))) {
+      const zipExtractedTitle = getTitleFromZip(tempTargetPath);
+      if (zipExtractedTitle) {
+        finalName = zipExtractedTitle;
       }
     }
 
