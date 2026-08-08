@@ -386,22 +386,78 @@ router.post('/torrent', async (req, res) => {
     const fileId = `file_torrent_${Date.now()}`;
     const relativePath = `/api/files/uploads-serve/user_demo-user-123/${encodeURIComponent(timestampedName)}`;
 
-    const isZip = /\.(zip|rar|7z|iso|tar|gz)$/i.test(originalFilename) || originalFilename.toLowerCase().includes('pro') || originalFilename.toLowerCase().includes('crack') || originalFilename.toLowerCase().includes('setup');
-    const isImg = /\.(jpg|jpeg|png|gif)$/i.test(originalFilename);
-    const isVid = /\.(mp4|mkv|avi)$/i.test(originalFilename);
-    const fileType = isZip ? 'archive' : isImg ? 'image' : isVid ? 'video' : 'archive';
+    // Enhanced Smart Media Type & Extension Resolution for Torrent / Magnet Downloads
+    let finalTorrentName = displayName;
+    const lowerDn = displayName.toLowerCase();
+
+    const hasVideoExt = /\.(mp4|mkv|avi|webm|mov|flv|wmv|m4v|3gp)$/i.test(lowerDn);
+    const hasAudioExt = /\.(mp3|flac|wav|ogg|m4a|aac|opus|wma)$/i.test(lowerDn);
+    const hasArchiveExt = /\.(zip|rar|7z|iso|tar|gz|bz2)$/i.test(lowerDn);
+    const hasDocExt = /\.(pdf|epub|mobi|doc|docx|txt)$/i.test(lowerDn);
+
+    const isVideoTorrent = hasVideoExt || (
+      !hasArchiveExt && !hasAudioExt && !hasDocExt &&
+      /(1080p|720p|4k|2160p|480p|webrip|web-dl|bluray|bdrip|dvdrip|hdtv|x264|x265|hevc|h264|h265|aac2\.0|aac5\.1|yify|rarbg|eztv|movie|film|season|s\d{1,2}e\d{1,2})/i.test(lowerDn)
+    );
+
+    const isAudioTorrent = hasAudioExt || (
+      !hasArchiveExt && !isVideoTorrent && !hasDocExt &&
+      /(320kbps|flac|lossless|discography|album|soundtrack|ost|remix)/i.test(lowerDn)
+    );
+
+    const isDocTorrent = hasDocExt || (
+      !hasArchiveExt && !isVideoTorrent && !isAudioTorrent &&
+      /(pdf|epub|mobi|ebook|book|manual|doc)/i.test(lowerDn)
+    );
+
+    let fileType = 'archive';
+    let mimeType = 'application/zip';
+
+    if (isVideoTorrent) {
+      fileType = 'video';
+      mimeType = 'video/mp4';
+      if (!hasVideoExt) {
+        finalTorrentName = `${finalTorrentName}.mp4`;
+      }
+    } else if (isAudioTorrent) {
+      fileType = 'audio';
+      mimeType = 'audio/mpeg';
+      if (!hasAudioExt) {
+        finalTorrentName = `${finalTorrentName}.mp3`;
+      }
+    } else if (isDocTorrent) {
+      fileType = 'document';
+      mimeType = 'application/pdf';
+      if (!hasDocExt) {
+        finalTorrentName = `${finalTorrentName}.pdf`;
+      }
+    } else {
+      fileType = 'archive';
+      mimeType = 'application/zip';
+      if (!hasArchiveExt) {
+        finalTorrentName = `${finalTorrentName}.zip`;
+      }
+    }
+
+    const cleanFinalName = finalTorrentName.replace(/[^\w\.\-\s\(\)\[\]]/gi, '_').trim() || `torrent_${Date.now()}`;
+    const timestampedFinalName = `${Date.now()}_${cleanFinalName}`;
+    const finalDiskPath = path.join(uploadsDir, timestampedFinalName);
+
+    if (fs.existsSync(targetPath)) {
+      fs.renameSync(targetPath, finalDiskPath);
+    }
 
     const file = {
       id: fileId,
-      name: originalFilename,
-      originalFilename,
-      cleanFilename: timestampedName,
+      name: finalTorrentName,
+      originalFilename: finalTorrentName,
+      cleanFilename: timestampedFinalName,
       type: fileType,
-      mimeType: isZip ? 'application/zip' : 'application/octet-stream',
+      mimeType,
       size: realSizeBytes,
       sizeFormatted: `${(realSizeBytes / (1024 * 1024)).toFixed(1)} MB`,
-      storagePath: relativePath,
-      url: relativePath,
+      storagePath: `/api/files/uploads-serve/user_demo-user-123/${encodeURIComponent(timestampedFinalName)}`,
+      url: `/api/files/uploads-serve/user_demo-user-123/${encodeURIComponent(timestampedFinalName)}`,
       folderId: null,
       isStarred: false,
       isShared: false,
@@ -412,7 +468,7 @@ router.post('/torrent', async (req, res) => {
 
     return res.json({
       success: true,
-      message: `Magnet Link for "${originalFilename}" fetched successfully!`,
+      message: `Magnet Link for "${finalTorrentName}" fetched successfully!`,
       file
     });
   } catch (error) {
