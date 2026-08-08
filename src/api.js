@@ -228,6 +228,90 @@ export async function updateZipEntryTextApi(fileIdOrName, entryName, text) {
   }
 }
 
+export async function getUserProfileApi() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/profile`);
+    const data = await safeJsonParse(res);
+    if (res.ok && data && data.success) return data;
+    return { success: false, user: null };
+  } catch (error) {
+    return { success: false, user: null };
+  }
+}
+
+export async function updateUserProfileApi(profileData) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/profile`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(profileData),
+    });
+    const data = await safeJsonParse(res);
+    return data || { success: false, error: 'Imeshindwa kusasisha profile' };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function changePasswordApi(currentPassword, newPassword) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/change-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const data = await safeJsonParse(res);
+    return data || { success: false, error: 'Imeshindwa kubadilisha password' };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function setup2FAApi() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/2fa/setup`, { method: "POST" });
+    const data = await safeJsonParse(res);
+    return data || { success: false };
+  } catch (error) {
+    return { success: false };
+  }
+}
+
+export async function toggle2FAApi(enable) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/2fa/toggle`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enable }),
+    });
+    const data = await safeJsonParse(res);
+    return data || { success: false };
+  } catch (error) {
+    return { success: false };
+  }
+}
+
+export async function getActivityLogsApi() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/activity-logs`);
+    const data = await safeJsonParse(res);
+    if (res.ok && data && data.success) return data;
+    return { success: false, logs: [] };
+  } catch (error) {
+    return { success: false, logs: [] };
+  }
+}
+
+export async function generateApiKeyApi() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/api-keys/generate`, { method: "POST" });
+    const data = await safeJsonParse(res);
+    return data || { success: false };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
 export async function deleteFileApi(fileId, cleanFilename = '', name = '') {
   try {
     const targetQuery = encodeURIComponent(cleanFilename || name || fileId);

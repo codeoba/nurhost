@@ -31,6 +31,7 @@ export default function Header({
   activeTab, 
   setActiveTab,
   onOpenPricing,
+  onOpenProfile,
   selectedCategory,
   setSelectedCategory
 }) {
@@ -323,6 +324,13 @@ export default function Header({
 
               <div style={{ padding: '4px 0' }}>
                 <button 
+                  onClick={() => { if (onOpenProfile) onOpenProfile(); setShowProfileMenu(false); }}
+                  className="btn btn-ghost" 
+                  style={{ width: '100%', justifyContent: 'flex-start', fontSize: '13px' }}
+                >
+                  <User size={16} /> Profile & Hifadhi
+                </button>
+                <button 
                   onClick={() => { onOpenPricing(); setShowProfileMenu(false); }}
                   className="btn btn-ghost" 
                   style={{ width: '100%', justifyContent: 'flex-start', fontSize: '13px' }}
@@ -330,18 +338,18 @@ export default function Header({
                   <Sparkles size={16} /> Upgrade Plan
                 </button>
                 <button 
-                  onClick={() => setShowProfileMenu(false)}
+                  onClick={() => { if (onOpenProfile) onOpenProfile(); setShowProfileMenu(false); }}
                   className="btn btn-ghost" 
                   style={{ width: '100%', justifyContent: 'flex-start', fontSize: '13px' }}
                 >
-                  <Settings size={16} /> Settings & API
+                  <Settings size={16} /> Settings & API Keys
                 </button>
                 <button 
-                  onClick={() => setShowProfileMenu(false)}
+                  onClick={() => { if (onOpenProfile) onOpenProfile(); setShowProfileMenu(false); }}
                   className="btn btn-ghost" 
                   style={{ width: '100%', justifyContent: 'flex-start', fontSize: '13px' }}
                 >
-                  <ShieldCheck size={16} /> Admin Dashboard
+                  <ShieldCheck size={16} /> Usalama & 2FA
                 </button>
               </div>
 

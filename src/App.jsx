@@ -24,7 +24,7 @@ import TrashManager from './components/TrashManager';
 import MoveToFolderModal from './components/MoveToFolderModal';
 import StorageAnalyticsModal from './components/StorageAnalyticsModal';
 import FloatingAudioPlayer from './components/FloatingAudioPlayer';
-import ImageEditorModal from './components/ImageEditorModal';
+import ProfileModal from './components/ProfileModal';
 import { LanguageProvider } from './i18n';
 import { downloadZipApi } from './api';
 
@@ -128,6 +128,7 @@ function App() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [showMonacoModal, setShowMonacoModal] = useState(false);
   const [activeZipFile, setActiveZipFile] = useState(null);
   const [showStorageAnalytics, setShowStorageAnalytics] = useState(false);
@@ -426,6 +427,7 @@ function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenPricing={() => setShowPricingModal(true)}
+        onOpenProfile={() => setShowProfileModal(true)}
         selectedCategory={selectedCategory}
         setSelectedCategory={setSelectedCategory}
       />
@@ -640,6 +642,12 @@ function App() {
           onToast={triggerToast}
         />
       )}
+
+      {/* User Profile & Security Suite Modal */}
+      <ProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+      />
 
       {/* In-Browser Monaco Text Editor & Viewer Modal */}
       <MonacoTextEditorModal

@@ -8,8 +8,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5050;
 
+const { securityHeaders, authLimiter } = require("./middleware/security");
+
 // Middleware
 app.use(cors({ origin: "*" }));
+app.use(securityHeaders);
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
@@ -22,7 +25,9 @@ const filesRouter = require("./routes/files");
 const sharesRouter = require("./routes/shares");
 const extractRouter = require("./routes/extract");
 const downloadsRouter = require("./routes/remoteDownloads");
+const authRouter = require("./routes/auth");
 
+app.use("/api/auth", authLimiter, authRouter);
 app.use("/api/files", filesRouter);
 app.use("/api/shares", sharesRouter);
 app.use("/api/extract", extractRouter);
