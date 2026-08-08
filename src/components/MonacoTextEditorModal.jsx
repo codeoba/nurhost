@@ -114,80 +114,139 @@ export default function MonacoTextEditorModal({ isOpen, onClose, initialFile = n
         className="modal-card animate-slide-up"
         onClick={(e) => e.stopPropagation()}
         style={{
-          maxWidth: '1000px',
+          maxWidth: '1080px',
           width: '94vw',
           height: '88vh',
-          background: 'var(--bg-secondary)',
+          background: '#0d1117',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
           padding: 0,
           borderRadius: '16px',
-          border: '1px solid var(--border-color)',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)'
+          border: '1px solid rgba(255,255,255,0.12)',
+          boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.85)'
         }}
       >
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              <FileCode className="w-5 h-5" />
+        {/* Top Header */}
+        <div style={{
+          padding: '14px 20px',
+          background: '#161b22',
+          borderBottom: '1px solid rgba(255,255,255,0.1)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+            <div style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '10px',
+              background: 'rgba(99, 102, 241, 0.15)',
+              color: '#818cf8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '1px solid rgba(99, 102, 241, 0.3)'
+            }}>
+              <FileCode size={20} />
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                In-Browser Monaco Code Editor
+            <div style={{ minWidth: 0 }}>
+              <h2 style={{ fontSize: '15px', fontWeight: '700', color: '#f3f4f6', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                Monaco Live Code & Text Editor
               </h2>
-              <p className="text-xs text-slate-400">Tengeneza au hariri maandishi/code moja kwa moja</p>
+              <p style={{ fontSize: '12px', color: '#9ca3af', margin: '2px 0 0 0' }}>
+                Soma, badilisha, na uhifadhi maandishi au kodi moja kwa moja
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-3">
-            {/* Language dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
-              className="bg-slate-800 text-slate-200 text-xs px-3 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:border-indigo-500"
+              style={{
+                background: '#0d1117',
+                color: '#e5e7eb',
+                fontSize: '12px',
+                fontWeight: '600',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,255,255,0.15)',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
             >
+              <option value="plaintext">Plain Text</option>
+              <option value="markdown">Markdown</option>
+              <option value="json">JSON</option>
               <option value="javascript">JavaScript</option>
               <option value="typescript">TypeScript</option>
               <option value="html">HTML</option>
               <option value="css">CSS</option>
-              <option value="json">JSON</option>
               <option value="python">Python</option>
               <option value="php">PHP</option>
               <option value="sql">SQL</option>
-              <option value="markdown">Markdown</option>
-              <option value="plaintext">Plain Text</option>
+              <option value="xml">XML</option>
+              <option value="shell">Shell (bash)</option>
+              <option value="yaml">YAML</option>
             </select>
 
             <button
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+              className="btn btn-ghost btn-icon"
+              style={{ color: '#9ca3af', background: 'transparent', border: 'none', cursor: 'pointer', padding: '6px' }}
             >
-              <X className="w-5 h-5" />
+              <X size={20} />
             </button>
           </div>
         </div>
 
-        {/* Toolbar & Filename Input */}
-        <div className="px-6 py-3 bg-slate-950/60 border-b border-slate-800 flex items-center justify-between">
-          <div className="flex items-center space-x-2 flex-1 max-w-md">
-            <span className="text-xs text-slate-400 font-medium">Jina la Faili:</span>
+        {/* Action Toolbar */}
+        <div style={{
+          padding: '10px 20px',
+          background: '#0d1117',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, maxWidth: '480px' }}>
+            <span style={{ fontSize: '12px', color: '#9ca3af', fontWeight: '600', whiteSpace: 'nowrap' }}>Jina la Faili:</span>
             <input
               type="text"
               value={filename}
               onChange={handleFilenameChange}
-              placeholder="e.g. index.js, notes.txt"
-              className="flex-1 bg-slate-900 text-white text-xs px-3 py-1.5 rounded-lg border border-slate-700/70 focus:outline-none focus:border-indigo-500"
+              placeholder="e.g. notes.txt, config.json"
+              style={{
+                flex: 1,
+                background: '#161b22',
+                color: '#ffffff',
+                fontSize: '12px',
+                fontWeight: '600',
+                padding: '7px 12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,255,255,0.15)',
+                outline: 'none'
+              }}
             />
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {message && (
-              <span className={`text-xs flex items-center gap-1.5 px-3 py-1 rounded-md ${
-                message.type === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-              }`}>
-                {message.type === 'success' ? <Check className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+              <span style={{
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '5px 12px',
+                borderRadius: '6px',
+                background: message.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
+                color: message.type === 'success' ? '#10b981' : '#f43f5e',
+                border: `1px solid ${message.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`
+              }}>
+                {message.type === 'success' ? <Check size={14} /> : <AlertCircle size={14} />}
                 {message.text}
               </span>
             )}
@@ -195,24 +254,49 @@ export default function MonacoTextEditorModal({ isOpen, onClose, initialFile = n
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-lg shadow-indigo-600/25 transition-all disabled:opacity-50"
+              className="btn btn-primary"
+              style={{
+                background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+                color: '#ffffff',
+                fontSize: '13px',
+                fontWeight: '700',
+                padding: '8px 18px',
+                borderRadius: '8px',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)'
+              }}
             >
-              <Save className="w-4 h-4" />
+              <Save size={16} />
               <span>{saving ? 'Inahifadhi...' : 'Hifadhi Faili'}</span>
             </button>
           </div>
         </div>
 
-        {/* Monaco Editor Container */}
-        <div className="flex-1 w-full bg-[#1e1e1e] relative">
+        {/* Editor Container */}
+        <div style={{ flex: 1, width: '100%', minHeight: 0, position: 'relative', background: '#1e1e1e' }}>
           {loading && (
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#1e1e1e]/90 text-slate-300">
-              <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-2" />
-              <p className="text-xs">Inafungua maudhui ya faili...</p>
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 10,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(30,30,30,0.92)',
+              color: '#e2e8f0'
+            }}>
+              <Loader2 size={32} className="animate-spin" style={{ color: '#6366f1', marginBottom: '10px' }} />
+              <p style={{ fontSize: '13px', fontWeight: '600' }}>Inafungua maudhui ya faili...</p>
             </div>
           )}
           <Editor
             height="100%"
+            width="100%"
             language={language}
             theme="vs-dark"
             value={content}
