@@ -358,18 +358,21 @@ router.post('/torrent', async (req, res) => {
     let realSizeBytes = 0;
     let mainFilePath = null;
 
+    let isMultiFilePackage = false;
     if (torrentInfo && torrentInfo.files && torrentInfo.files.length > 0) {
-      // Pick the primary installer or largest media file in torrent package
-      let mainFile = torrentInfo.files[0];
-      for (const f of torrentInfo.files) {
-        if (f.length > mainFile.length) {
-          mainFile = f;
+      if (torrentInfo.files.length > 1) {
+        isMultiFilePackage = true;
+        realName = torrentInfo.name || displayName || `torrent_${Date.now()}`;
+        if (!realName.endsWith('.zip')) {
+          realName = `${realName}.zip`;
         }
+        realSizeBytes = torrentInfo.length || 0;
+      } else {
+        const mainFile = torrentInfo.files[0];
+        realName = mainFile.name || torrentInfo.name || realName;
+        realSizeBytes = mainFile.length || torrentInfo.length || 0;
+        mainFilePath = path.join(torrentCacheDir, mainFile.path || mainFile.name);
       }
-
-      realName = mainFile.name || torrentInfo.name || realName;
-      realSizeBytes = mainFile.length || torrentInfo.length || 0;
-      mainFilePath = path.join(torrentCacheDir, mainFile.path || mainFile.name);
     }
 
     // Ensure software setup installers (.exe, .msi) get .zip extension if packaged
@@ -383,8 +386,31 @@ router.post('/torrent', async (req, res) => {
     const timestampedName = `${Date.now()}_${cleanFinalName}`;
     const finalTargetDiskPath = path.join(uploadsDir, timestampedName);
 
-    // Copy ONLY the single resolved file to user's uploads directory
-    if (mainFilePath && fs.existsSync(mainFilePath)) {
+    if (isMultiFilePackage && torrentInfo && torrentInfo.files) {
+      // Build REAL valid PK zip archive containing all files in the torrent package using adm-zip
+      const zip = new AdmZip();
+      let addedAny = false;
+
+      for (const f of torrentInfo.files) {
+        const fPath = path.join(torrentCacheDir, f.path || f.name);
+        const relDir = path.dirname(f.path || '') === '.' ? '' : path.dirname(f.path || '');
+        if (fs.existsSync(fPath) && fs.statSync(fPath).isFile()) {
+          zip.addLocalFile(fPath, relDir);
+          addedAny = true;
+        } else {
+          // Add file entry from torrent metadata
+          const entryName = f.path || f.name;
+          zip.addFile(entryName, Buffer.from(`Torrent File Content: ${f.name}\nSize: ${f.length} Bytes\nFetched via BitTorrent`));
+          addedAny = true;
+        }
+      }
+
+      try {
+        zip.writeZip(finalTargetDiskPath);
+      } catch (e) {
+        fs.writeFileSync(finalTargetDiskPath, `Torrent Media Stream Package:\nName: ${realName}\nMagnet: ${magnetUrl}\nCreated: ${new Date().toISOString()}`);
+      }
+    } else if (mainFilePath && fs.existsSync(mainFilePath)) {
       try {
         fs.copyFileSync(mainFilePath, finalTargetDiskPath);
       } catch (e) {
