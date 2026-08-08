@@ -575,13 +575,7 @@ export default function App() {
         />
       )}
 
-      {previewCodeFile && (
-        <CodeViewerModal
-          file={previewCodeFile}
-          onClose={() => setPreviewCodeFile(null)}
-          onToast={triggerToast}
-        />
-      )}
+
 
       {previewPdfFile && (
         <PdfViewerModal

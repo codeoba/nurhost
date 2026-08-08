@@ -109,8 +109,24 @@ export default function MonacoTextEditorModal({ isOpen, onClose, initialFile = n
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+    <div className="modal-overlay" style={{ zIndex: 12000 }} onClick={onClose}>
+      <div 
+        className="modal-card animate-slide-up"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: '1000px',
+          width: '94vw',
+          height: '88vh',
+          background: 'var(--bg-secondary)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          padding: 0,
+          borderRadius: '16px',
+          border: '1px solid var(--border-color)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)'
+        }}
+      >
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
           <div className="flex items-center space-x-3">
