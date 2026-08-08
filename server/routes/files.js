@@ -62,7 +62,7 @@ function addFileVersion(fileId, filename, contentOrPath, changeSummary = "Update
   return versionRecord;
 }
 
-// GET /api/files/uploads-serve/:userDir/:filename - Smart file recovery & serving route
+// GET /api/files/uploads-serve/:userDir/:filename - High-Performance HTTP Range Streaming Engine
 router.get("/uploads-serve/:userDir/:filename", (req, res) => {
   try {
     const { userDir, filename } = req.params;
@@ -73,28 +73,100 @@ router.get("/uploads-serve/:userDir/:filename", (req, res) => {
       return res.status(404).send("User directory not found");
     }
 
+    let filePath = null;
+
     // 1. Direct match
     const exactPath = path.join(userFolderPath, decodedFilename);
     if (fs.existsSync(exactPath) && fs.statSync(exactPath).isFile()) {
-      return res.sendFile(exactPath);
+      filePath = exactPath;
+    } else {
+      // 2. Fuzzy match against timestamped filenames on disk
+      const filesOnDisk = fs.readdirSync(userFolderPath);
+      const cleanTarget = decodedFilename.replace(/[\s\-_()]+/g, '').toLowerCase();
+
+      const matchedFile = filesOnDisk.find(f => {
+        const cleanDisk = f.replace(/^\d+_/, '').replace(/[\s\-_()]+/g, '').toLowerCase();
+        return cleanDisk === cleanTarget || f.endsWith(decodedFilename) || f.toLowerCase().includes(cleanTarget);
+      });
+
+      if (matchedFile) {
+        filePath = path.join(userFolderPath, matchedFile);
+      }
     }
 
-    // 2. Fuzzy match against timestamped filenames on disk
-    const filesOnDisk = fs.readdirSync(userFolderPath);
-    const cleanTarget = decodedFilename.replace(/[\s\-_()]+/g, '').toLowerCase();
-
-    const matchedFile = filesOnDisk.find(f => {
-      const cleanDisk = f.replace(/^\d+_/, '').replace(/[\s\-_()]+/g, '').toLowerCase();
-      return cleanDisk === cleanTarget || f.endsWith(decodedFilename) || f.toLowerCase().includes(cleanTarget);
-    });
-
-    if (matchedFile) {
-      return res.sendFile(path.join(userFolderPath, matchedFile));
+    if (!filePath || !fs.existsSync(filePath)) {
+      return res.status(404).send("File not found on server disk");
     }
 
-    return res.status(404).send("File not found on server disk");
+    const stat = fs.statSync(filePath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+
+    // Determine MIME type for Range Streaming
+    const ext = path.extname(filePath).toLowerCase();
+    const mimeTypes = {
+      '.mp4': 'video/mp4',
+      '.mkv': 'video/x-matroska',
+      '.webm': 'video/webm',
+      '.avi': 'video/x-msvideo',
+      '.mov': 'video/quicktime',
+      '.flv': 'video/x-flv',
+      '.wmv': 'video/x-ms-wmv',
+      '.3gp': 'video/3gpp',
+      '.mp3': 'audio/mpeg',
+      '.wav': 'audio/wav',
+      '.ogg': 'audio/ogg',
+      '.flac': 'audio/flac',
+      '.m4a': 'audio/mp4',
+      '.aac': 'audio/aac',
+      '.pdf': 'application/pdf',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+      '.svg': 'image/svg+xml'
+    };
+
+    const contentType = mimeTypes[ext] || 'application/octet-stream';
+
+    // HTTP Range Streaming Engine for smooth Video & Audio Seeking/Playback (206 Partial Content)
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+      if (start >= fileSize || end >= fileSize) {
+        res.status(416).setHeader("Content-Range", `bytes */${fileSize}`);
+        return res.end();
+      }
+
+      const chunksize = (end - start) + 1;
+      const fileStream = fs.createReadStream(filePath, { start, end });
+
+      res.writeHead(206, {
+        "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": chunksize,
+        "Content-Type": contentType,
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=3600"
+      });
+
+      fileStream.pipe(res);
+    } else {
+      res.writeHead(200, {
+        "Content-Length": fileSize,
+        "Content-Type": contentType,
+        "Accept-Ranges": "bytes",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=3600"
+      });
+      fs.createReadStream(filePath).pipe(res);
+    }
   } catch (err) {
-    return res.status(500).send("Error serving file");
+    console.error("Error serving file stream:", err);
+    return res.status(500).send("Error serving file stream");
   }
 });
 // Helper to check if file on disk is a Zip archive by reading PK magic bytes

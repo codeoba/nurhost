@@ -4,19 +4,22 @@ import { resolveFileUrl } from '../api';
 
 export function VideoPlayerModal({ file, onClose, onShare, onToast }) {
   const videoSrc = resolveFileUrl(file.url, file.cleanFilename, file.name);
+  const ext = (file.name.split('.').pop() || 'mp4').toLowerCase();
+  const mimeType = file.mimeType || (ext === 'mkv' ? 'video/x-matroska' : ext === 'webm' ? 'video/webm' : 'video/mp4');
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div 
         className="modal-card animate-slide-up"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: '800px', background: 'var(--bg-secondary)', overflow: 'hidden' }}
+        style={{ maxWidth: '880px', width: '92vw', background: 'var(--bg-secondary)', overflow: 'hidden' }}
       >
         <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
             <span className="badge badge-indigo">
               <Film size={12} /> Video Player
             </span>
-            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)' }}>
+            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {file.name}
             </span>
           </div>
@@ -25,26 +28,30 @@ export function VideoPlayerModal({ file, onClose, onShare, onToast }) {
           </button>
         </div>
 
-        <div style={{ background: '#000000', width: '100%', maxHeight: '480px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ background: '#000000', width: '100%', minHeight: '340px', maxHeight: '520px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
           <video
-            src={videoSrc}
             controls
-            autoPlay
+            playsInline
+            preload="auto"
             poster={file.poster}
-            style={{ width: '100%', maxHeight: '480px', objectFit: 'contain' }}
-          />
+            style={{ width: '100%', maxHeight: '520px', objectFit: 'contain', background: '#000000' }}
+          >
+            <source src={videoSrc} type={mimeType} />
+            <source src={videoSrc} />
+            Your browser does not support HTML5 video streaming.
+          </video>
         </div>
 
         <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            Resolution: <strong>{file.resolution || '1080p HD'}</strong> • Size: <strong>{file.sizeFormatted}</strong>
+            Format: <strong>.{ext.toUpperCase()}</strong> • Size: <strong>{file.sizeFormatted}</strong>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button onClick={() => { onClose(); onShare(file); }} className="btn btn-secondary" style={{ fontSize: '13px' }}>
               <Share2 size={16} /> Share Video
             </button>
             <a href={videoSrc} download={file.name} target="_blank" rel="noreferrer" className="btn btn-primary" style={{ fontSize: '13px', textDecoration: 'none' }}>
-              <Download size={16} /> Download
+              <Download size={16} /> Download Video
             </a>
           </div>
         </div>
