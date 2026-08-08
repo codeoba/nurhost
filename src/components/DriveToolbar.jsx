@@ -32,6 +32,7 @@ export default function DriveToolbar({
   onSelectAll,
   allSelected,
   onBulkDownload,
+  onBulkDownloadZip,
   onBulkStar,
   onBulkDelete,
   onBulkShare,
@@ -155,8 +156,13 @@ export default function DriveToolbar({
               <Star size={14} /> Star
             </button>
             <button onClick={onBulkDownload} className="btn" style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', padding: '6px 12px', fontSize: '12px' }}>
-              <Download size={14} /> Download
+              <Download size={14} /> Download Files
             </button>
+            {onBulkDownloadZip && (
+              <button onClick={onBulkDownloadZip} className="btn" style={{ background: 'rgba(6,182,212,0.3)', color: '#fff', padding: '6px 12px', fontSize: '12px', fontWeight: '700' }}>
+                <Archive size={14} /> Download as Zip 📦
+              </button>
+            )}
             {onBulkMove && (
               <button onClick={onBulkMove} className="btn" style={{ background: 'rgba(167,139,250,0.3)', color: '#fff', padding: '6px 12px', fontSize: '12px' }}>
                 <FolderOpen size={14} /> Move

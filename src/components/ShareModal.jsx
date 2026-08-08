@@ -208,6 +208,36 @@ export default function ShareModal({ file, onClose, onToast }) {
                 }}
               />
             )}
+
+            {/* Self-Destruct Download Limit */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <ShieldCheck size={16} color="var(--accent-rose)" />
+                <div>
+                  <p style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)' }}>Self-Destruct Limit 💥</p>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Automatically delete share after max downloads</p>
+                </div>
+              </div>
+              <select
+                value={file.maxDownloads || 0}
+                onChange={(e) => {
+                  if (onToast) onToast(`Self-destruct set to ${e.target.value || 'Off'}`);
+                }}
+                style={{
+                  background: 'var(--bg-secondary)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  padding: '4px 8px'
+                }}
+              >
+                <option value={0}>Off (Unlimited)</option>
+                <option value={1}>1 Download (Single Use)</option>
+                <option value={5}>5 Downloads</option>
+                <option value={10}>10 Downloads</option>
+              </select>
+            </div>
           </div>
 
           {/* Email Invites Section */}

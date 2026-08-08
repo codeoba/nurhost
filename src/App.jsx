@@ -23,12 +23,19 @@ import FileVersionDrawer from './components/FileVersionDrawer';
 import TrashManager from './components/TrashManager';
 import MoveToFolderModal from './components/MoveToFolderModal';
 import StorageAnalyticsModal from './components/StorageAnalyticsModal';
+import FloatingAudioPlayer from './components/FloatingAudioPlayer';
+import ImageEditorModal from './components/ImageEditorModal';
+import { LanguageProvider } from './i18n';
+import { downloadZipApi } from './api';
 
-export default function App() {
+function App() {
   const [darkMode, setDarkMode] = useState(true);
   const [activeTab, setActiveTab] = useState('drive'); // 'drive' or 'public-share'
   const [activeNav, setActiveNav] = useState('drive');
   const [currentFolderId, setCurrentFolderId] = useState(null);
+
+  const [activeFloatingTrack, setActiveFloatingTrack] = useState(null);
+  const [activeImageEditorFile, setActiveImageEditorFile] = useState(null);
 
   const [folders, setFolders] = useState(() => {
     try {
@@ -240,7 +247,8 @@ export default function App() {
     if (detected === 'archive') {
       setActiveZipFile(file);
     } else if (detected === 'audio') {
-      setPreviewAudioFile(file);
+      setActiveFloatingTrack(file);
+      triggerToast(`Inaimba kurejeshwa: ${file.name || 'Audio Track'}`);
     } else if (detected === 'video') {
       setPreviewVideoFile(file);
     } else if (detected === 'image') {
@@ -460,6 +468,7 @@ export default function App() {
             onSelectAll={handleSelectAll}
             allSelected={selectedFileIds.length > 0 && selectedFileIds.length === filteredFiles.length}
             onBulkDownload={() => triggerToast(`Downloading ${selectedFileIds.length} file(s)...`)}
+            onBulkDownloadZip={handleBulkDownloadZip}
             onBulkStar={() => {
               setFiles(prev => prev.map(f => selectedFileIds.includes(f.id) ? { ...f, isStarred: true } : f));
               triggerToast(`Starred ${selectedFileIds.length} item(s)`);
@@ -714,8 +723,33 @@ export default function App() {
         onMove={handleMoveFiles}
       />
 
+      {/* Persistent Floating Audio Player */}
+      <FloatingAudioPlayer
+        currentTrack={activeFloatingTrack}
+        playlist={files.filter(f => f.type === 'audio')}
+        onClose={() => setActiveFloatingTrack(null)}
+        onTrackChange={(track) => setActiveFloatingTrack(track)}
+      />
+
+      {/* In-Browser Image Editor Modal */}
+      {activeImageEditorFile && (
+        <ImageEditorModal
+          file={activeImageEditorFile}
+          onClose={() => setActiveImageEditorFile(null)}
+          onSaved={() => triggerToast(`Picha imehifadhiwa kikamilifu!`)}
+        />
+      )}
+
       {/* Floating Notification Toast */}
       <Toast message={toastMessage} />
     </div>
+  );
+}
+
+export default function RootApp() {
+  return (
+    <LanguageProvider>
+      <App />
+    </LanguageProvider>
   );
 }

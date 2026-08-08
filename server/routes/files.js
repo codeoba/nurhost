@@ -552,4 +552,168 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// POST /api/files/download-zip - Bulk Multi-File & Folder Zip Exporter
+router.post('/download-zip', async (req, res) => {
+  try {
+    const { filenames = [], zipName = 'NurHost_Archive.zip' } = req.body;
+    const uploadsDir = path.join(__dirname, '../uploads/user_demo-user-123');
+
+    if (!fs.existsSync(uploadsDir)) {
+      return res.status(404).json({ success: false, error: 'No files found on server disk' });
+    }
+
+    const AdmZip = require('adm-zip');
+    const zip = new AdmZip();
+    let addedCount = 0;
+
+    const allItems = fs.readdirSync(uploadsDir);
+    for (const target of filenames) {
+      if (!target) continue;
+      const cleanTarget = target.replace(/^srv-file-\d+-/i, '').replace(/^[^\_]+_/, '').trim();
+
+      for (const item of allItems) {
+        const fullPath = path.join(uploadsDir, item);
+        const origName = item.replace(/^\d+_/, '');
+
+        if (item === target || origName === target || item.includes(cleanTarget) || origName.includes(cleanTarget)) {
+          if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+            zip.addLocalFile(fullPath, '', origName);
+            addedCount++;
+            break;
+          }
+        }
+      }
+    }
+
+    if (addedCount === 0) {
+      for (const item of allItems) {
+        const fullPath = path.join(uploadsDir, item);
+        if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+          const origName = item.replace(/^\d+_/, '');
+          zip.addLocalFile(fullPath, '', origName);
+          addedCount++;
+        }
+      }
+    }
+
+    const zipBuffer = zip.toBuffer();
+    const finalZipName = zipName.endsWith('.zip') ? zipName : `${zipName}.zip`;
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(finalZipName)}"`);
+    res.setHeader('Content-Length', zipBuffer.length);
+    return res.send(zipBuffer);
+  } catch (error) {
+    console.error('Download Zip error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/files/duplicates - Scan MD5 Hash Checksums for Duplicate Files
+router.get('/duplicates', async (req, res) => {
+  try {
+    const uploadsDir = path.join(__dirname, '../uploads/user_demo-user-123');
+    if (!fs.existsSync(uploadsDir)) {
+      return res.json({ success: true, duplicates: [], totalReclaimableBytes: 0 });
+    }
+
+    const crypto = require('crypto');
+    const hashMap = new Map();
+    const items = fs.readdirSync(uploadsDir);
+
+    for (const item of items) {
+      const fullPath = path.join(uploadsDir, item);
+      let stat;
+      try { stat = fs.statSync(fullPath); } catch (e) { continue; }
+      if (!stat.isFile()) continue;
+
+      const buffer = fs.readFileSync(fullPath);
+      const hash = crypto.createHash('md5').update(buffer).digest('hex');
+
+      if (!hashMap.has(hash)) {
+        hashMap.set(hash, []);
+      }
+      hashMap.get(hash).push({
+        filename: item,
+        originalName: item.replace(/^\d+_/, ''),
+        size: stat.size,
+        path: fullPath
+      });
+    }
+
+    const duplicates = [];
+    let totalReclaimableBytes = 0;
+
+    for (const [hash, fileList] of hashMap.entries()) {
+      if (fileList.length > 1) {
+        const redundant = fileList.slice(1);
+        for (const red of redundant) {
+          totalReclaimableBytes += red.size;
+        }
+        duplicates.push({
+          hash,
+          original: fileList[0],
+          duplicates: redundant
+        });
+      }
+    }
+
+    return res.json({
+      success: true,
+      duplicateGroups: duplicates.length,
+      duplicateCount: duplicates.reduce((acc, g) => acc + g.duplicates.length, 0),
+      totalReclaimableBytes,
+      totalReclaimableFormatted: totalReclaimableBytes >= 1024 * 1024 ? `${(totalReclaimableBytes / (1024 * 1024)).toFixed(1)} MB` : `${(totalReclaimableBytes / 1024).toFixed(1)} KB`,
+      duplicates
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/files/clean-duplicates - Clean All Redundant Duplicate Files
+router.post('/clean-duplicates', async (req, res) => {
+  try {
+    const uploadsDir = path.join(__dirname, '../uploads/user_demo-user-123');
+    if (!fs.existsSync(uploadsDir)) {
+      return res.json({ success: true, cleanedCount: 0 });
+    }
+
+    const crypto = require('crypto');
+    const hashMap = new Map();
+    const items = fs.readdirSync(uploadsDir);
+    let cleanedCount = 0;
+    let freedBytes = 0;
+
+    for (const item of items) {
+      const fullPath = path.join(uploadsDir, item);
+      let stat;
+      try { stat = fs.statSync(fullPath); } catch (e) { continue; }
+      if (!stat.isFile()) continue;
+
+      const buffer = fs.readFileSync(fullPath);
+      const hash = crypto.createHash('md5').update(buffer).digest('hex');
+
+      if (hashMap.has(hash)) {
+        try {
+          fs.unlinkSync(fullPath);
+          cleanedCount++;
+          freedBytes += stat.size;
+        } catch (e) {}
+      } else {
+        hashMap.set(hash, fullPath);
+      }
+    }
+
+    return res.json({
+      success: true,
+      cleanedCount,
+      freedBytes,
+      freedFormatted: freedBytes >= 1024 * 1024 ? `${(freedBytes / (1024 * 1024)).toFixed(1)} MB` : `${(freedBytes / 1024).toFixed(1)} KB`
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 module.exports = router;

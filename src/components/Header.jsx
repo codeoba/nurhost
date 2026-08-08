@@ -16,8 +16,10 @@ import {
   ExternalLink,
   ChevronDown,
   X,
-  Filter
+  Filter,
+  Languages
 } from 'lucide-react';
+import { useLanguage } from '../i18n';
 
 export default function Header({ 
   darkMode, 
@@ -32,6 +34,7 @@ export default function Header({
   selectedCategory,
   setSelectedCategory
 }) {
+  const { lang, toggleLanguage, t } = useLanguage();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showSearchFilter, setShowSearchFilter] = useState(false);
 
@@ -205,6 +208,22 @@ export default function Header({
 
       {/* Header Actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* Language Switcher Toggle */}
+        <button
+          onClick={toggleLanguage}
+          className="btn btn-secondary"
+          style={{
+            fontSize: '12px',
+            fontWeight: '700',
+            padding: '6px 12px',
+            borderColor: 'var(--accent-indigo)',
+            color: 'var(--accent-cyan)'
+          }}
+          title="Badilisha Lugha / Switch Language"
+        >
+          <Languages size={15} /> {lang === 'sw' ? 'SW 🇹🇿' : 'EN 🇬🇧'}
+        </button>
+
         {/* Storage Upgrade CTA */}
         <button
           onClick={onOpenPricing}

@@ -473,10 +473,62 @@ router.post('/torrent', async (req, res) => {
   }
 });
 
-// 3. GET /api/downloads/jobs - Check Download Jobs Status
-router.get('/jobs', (req, res) => {
-  const jobsList = Array.from(activeJobs.values());
-  res.json({ success: true, jobs: jobsList });
+// 4. POST /api/downloads/cloud-mirror - Cloud-to-Cloud Direct Mirroring Engine
+router.post('/cloud-mirror', async (req, res) => {
+  try {
+    const { cloudUrl, customFilename } = req.body;
+    if (!cloudUrl) return res.status(400).json({ success: false, error: 'Cloud URL is required.' });
+
+    const parsedUrl = new URL(cloudUrl);
+    let filename = customFilename || path.basename(parsedUrl.pathname) || `cloud_mirror_${Date.now()}`;
+    if (!path.extname(filename)) filename += '.zip';
+
+    const { cleanFilename, originalFilename } = sanitizeFilename(filename);
+    const uploadsDir = path.join(__dirname, '../uploads/user_demo-user-123');
+    if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+    const timestampedName = `${Date.now()}_${cleanFilename}`;
+    const destinationPath = path.join(uploadsDir, timestampedName);
+
+    const client = cloudUrl.startsWith('https') ? https : http;
+    const fileStream = fs.createWriteStream(destinationPath);
+
+    client.get(cloudUrl, (response) => {
+      if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+        return res.redirect(response.headers.location);
+      }
+
+      response.pipe(fileStream);
+
+      fileStream.on('finish', () => {
+        fileStream.close();
+        const stat = fs.statSync(destinationPath);
+        const sizeFormatted = stat.size >= 1024 * 1024 ? `${(stat.size / (1024 * 1024)).toFixed(1)} MB` : `${(stat.size / 1024).toFixed(1)} KB`;
+        const relativePath = `/api/files/uploads-serve/user_demo-user-123/${encodeURIComponent(timestampedName)}`;
+
+        return res.json({
+          success: true,
+          message: `Cloud Mirroring for "${originalFilename}" (${sizeFormatted}) completed!`,
+          file: {
+            id: `file_cloud_${Date.now()}`,
+            name: originalFilename,
+            originalFilename,
+            cleanFilename: timestampedName,
+            size: stat.size,
+            sizeFormatted,
+            storagePath: relativePath,
+            url: relativePath,
+            updatedAt: new Date().toISOString()
+          }
+        });
+      });
+    }).on('error', (err) => {
+      fs.unlink(destinationPath, () => {});
+      return res.status(500).json({ success: false, error: `Cloud Mirror Error: ${err.message}` });
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 module.exports = router;

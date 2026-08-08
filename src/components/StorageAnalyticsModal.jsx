@@ -178,15 +178,64 @@ export default function StorageAnalyticsModal({ isOpen, onClose, onOpenPricing }
             ))}
           </div>
 
-          {/* Donut Chart + Breakdown Side by Side */}
+          {/* Duplicate Scanner Action Bar */}
           <div style={{
+            background: 'rgba(239, 68, 68, 0.08)',
+            border: '1px solid rgba(239, 68, 68, 0.25)',
+            borderRadius: 'var(--radius-md)',
+            padding: '14px 18px',
             display: 'flex',
-            alignItems: 'flex-start',
-            gap: '28px',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '14px',
+            marginBottom: '20px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Zap size={18} color="#ef4444" />
+              <div>
+                <p style={{ fontSize: '13px', fontWeight: '700', color: '#f3f4f6', margin: 0 }}>
+                  Duplicate File Cleaner (MD5 Scanner)
+                </p>
+                <p style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0 0' }}>
+                  Futa mafaili yote yaliyojirudia ili kuokoa nafasi kwenye server disk
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={async () => {
+                const { cleanDuplicatesApi } = await import('../api');
+                const res = await cleanDuplicatesApi();
+                if (res.success && onToast) {
+                  onToast(`Nafasi ya ${res.freedFormatted || '0 KB'} imeokolewa kwa kufuta mafaili ${res.cleanedCount || 0} yaliyojirudia!`);
+                }
+              }}
+              className="btn"
+              style={{
+                background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                color: '#ffffff',
+                fontWeight: '700',
+                fontSize: '12px',
+                padding: '8px 16px',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer'
+              }}
+            >
+              Futa Yaliyojirudia 🧹
+            </button>
+          </div>
+
+          {/* Breakdown Container */}
+          <div style={{
             background: 'var(--bg-tertiary)',
             borderRadius: 'var(--radius-md)',
-            padding: '24px',
+            padding: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '24px',
             border: '1px solid var(--border-color)',
+            flexWrap: 'wrap',
             marginBottom: '20px'
           }}>
             {/* Donut */}

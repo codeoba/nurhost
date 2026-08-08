@@ -188,6 +188,58 @@ export async function deleteBatchFilesApi(fileIds = [], filenames = []) {
   }
 }
 
+export async function downloadZipApi(filenames = [], zipName = 'NurHost_Archive.zip') {
+  try {
+    const res = await fetch(`${API_BASE_URL}/files/download-zip`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filenames, zipName }),
+    });
+
+    if (!res.ok) {
+      const errData = await safeJsonParse(res);
+      throw new Error((errData && errData.error) || `Download failed (${res.status})`);
+    }
+
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = zipName.endsWith('.zip') ? zipName : `${zipName}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(blobUrl);
+
+    return { success: true };
+  } catch (error) {
+    console.error("downloadZipApi error:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getDuplicatesApi() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/files/duplicates`);
+    const data = await safeJsonParse(res);
+    return data || { success: true, duplicateCount: 0, duplicates: [] };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function cleanDuplicatesApi() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/files/clean-duplicates`, {
+      method: "POST"
+    });
+    const data = await safeJsonParse(res);
+    return data || { success: true, cleanedCount: 0 };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
 export async function downloadFromUrl(url, filename = '') {
   try {
     const res = await fetch(`${API_BASE_URL}/downloads/url`, {
