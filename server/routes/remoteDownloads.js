@@ -4,6 +4,7 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const AdmZip = require('adm-zip');
 const { sanitizeFilename } = require('../utils/sanitizeFilename');
 const prisma = require('../prismaClient');
 
