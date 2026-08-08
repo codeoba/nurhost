@@ -376,11 +376,7 @@ router.post('/torrent', async (req, res) => {
       }
     }
 
-    // Ensure software setup installers (.exe, .msi) get .zip extension if packaged
     let finalCleanNameStr = realName;
-    if (/\.(exe|msi|bat|cmd|apk)$/i.test(finalCleanNameStr) && !finalCleanNameStr.endsWith('.zip')) {
-      finalCleanNameStr = `${finalCleanNameStr}.zip`;
-    }
 
     // Sanitize final filename
     const cleanFinalName = finalCleanNameStr.replace(/[^\w\.\-\s\(\)\[\]]/gi, '_').trim() || `torrent_${Date.now()}`;

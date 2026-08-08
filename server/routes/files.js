@@ -211,13 +211,10 @@ router.get("/", (req, res) => {
       const stats = fs.statSync(fullPath);
       let originalName = fname.replace(/^\d+_/, '');
 
-      const isZipOnDisk = isZipFileOnDisk(fullPath);
-      const isZipByName = /\.(zip|rar|7z|tar|gz|bz2|iso)$/i.test(originalName) || originalName.toLowerCase().includes('pro') || originalName.toLowerCase().includes('crack') || originalName.toLowerCase().includes('setup') || originalName.toLowerCase().includes('driver') || originalName.toLowerCase().includes('booster') || originalName.toLowerCase().includes('iobit');
-      const isZip = isZipOnDisk || isZipByName;
-
-      if (isZip && !/\.(zip|rar|7z|iso|tar|gz)$/i.test(originalName)) {
-        originalName = `${originalName}.zip`;
-      }
+      const hasZipExtension = /\.(zip|rar|7z|tar|gz|bz2|iso)$/i.test(originalName);
+      const hasKnownNonZipExt = /\.(txt|lic|exe|msi|url|pdf|doc|docx|xls|xlsx|ppt|pptx|jpg|jpeg|png|gif|webp|mp3|wav|mp4|mkv|webm|html|css|js|json)$/i.test(originalName);
+      const isZipOnDisk = !hasKnownNonZipExt && isZipFileOnDisk(fullPath);
+      const isZip = hasZipExtension || isZipOnDisk;
 
       const isImg = !isZip && /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)$/i.test(originalName);
       const isVideo = !isZip && /\.(mp4|mkv|webm|avi|mov|flv|wmv|m4v|3gp|ts|mts|m2ts|vob|ogv|divx|xvid|f4v)$/i.test(originalName);
