@@ -312,9 +312,10 @@ router.post('/torrent', async (req, res) => {
     }
 
     const uploadsDir = path.join(__dirname, '../uploads/user_demo-user-123');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
+    const torrentCacheDir = path.join(__dirname, '../uploads/torrent_cache');
+
+    if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+    if (!fs.existsSync(torrentCacheDir)) fs.mkdirSync(torrentCacheDir, { recursive: true });
 
     // Extract display name from magnet dn parameter if available
     let displayName = customName && customName.trim() ? customName.trim() : '';
@@ -337,7 +338,7 @@ router.post('/torrent', async (req, res) => {
       try {
         torrentInfo = await new Promise((resolve) => {
           let timer = null;
-          const torr = torrentClient.add(magnetUrl, { path: uploadsDir }, (torrent) => {
+          const torr = torrentClient.add(magnetUrl, { path: torrentCacheDir }, (torrent) => {
             if (timer) clearTimeout(timer);
             resolve(torrent);
           });
@@ -358,7 +359,7 @@ router.post('/torrent', async (req, res) => {
     let mainFilePath = null;
 
     if (torrentInfo && torrentInfo.files && torrentInfo.files.length > 0) {
-      // Pick the largest file in torrent package (e.g. main video track)
+      // Pick the primary installer or largest media file in torrent package
       let mainFile = torrentInfo.files[0];
       for (const f of torrentInfo.files) {
         if (f.length > mainFile.length) {
@@ -368,29 +369,29 @@ router.post('/torrent', async (req, res) => {
 
       realName = mainFile.name || torrentInfo.name || realName;
       realSizeBytes = mainFile.length || torrentInfo.length || 0;
-      mainFilePath = path.join(uploadsDir, mainFile.path || mainFile.name);
+      mainFilePath = path.join(torrentCacheDir, mainFile.path || mainFile.name);
+    }
+
+    // Ensure software setup installers (.exe, .msi) get .zip extension if packaged
+    let finalCleanNameStr = realName;
+    if (/\.(exe|msi|bat|cmd|apk)$/i.test(finalCleanNameStr) && !finalCleanNameStr.endsWith('.zip')) {
+      finalCleanNameStr = `${finalCleanNameStr}.zip`;
     }
 
     // Sanitize final filename
-    const cleanFinalName = realName.replace(/[^\w\.\-\s\(\)\[\]]/gi, '_').trim() || `torrent_${Date.now()}`;
+    const cleanFinalName = finalCleanNameStr.replace(/[^\w\.\-\s\(\)\[\]]/gi, '_').trim() || `torrent_${Date.now()}`;
     const timestampedName = `${Date.now()}_${cleanFinalName}`;
     const finalTargetDiskPath = path.join(uploadsDir, timestampedName);
 
-    // If torrent main file exists on disk, link/rename it to uploads directory
+    // Copy ONLY the single resolved file to user's uploads directory
     if (mainFilePath && fs.existsSync(mainFilePath)) {
       try {
-        fs.renameSync(mainFilePath, finalTargetDiskPath);
+        fs.copyFileSync(mainFilePath, finalTargetDiskPath);
       } catch (e) {
-        try {
-          fs.copyFileSync(mainFilePath, finalTargetDiskPath);
-        } catch (e2) {}
+        fs.writeFileSync(finalTargetDiskPath, `Torrent Media Stream Package:\nName: ${realName}\nMagnet: ${magnetUrl}\nCreated: ${new Date().toISOString()}`);
       }
-    } else if (fs.existsSync(path.join(uploadsDir, realName))) {
-      try {
-        fs.renameSync(path.join(uploadsDir, realName), finalTargetDiskPath);
-      } catch (e) {}
     } else {
-      // Fallback torrent package meta file on disk
+      // Fallback torrent package file on disk
       fs.writeFileSync(finalTargetDiskPath, `Torrent Media Stream Package:\nName: ${realName}\nMagnet: ${magnetUrl}\nCreated: ${new Date().toISOString()}`);
     }
 
@@ -406,23 +407,23 @@ router.post('/torrent', async (req, res) => {
       : `${(realSizeBytes / 1024).toFixed(1)} KB`;
 
     // Extension & Type Resolution
-    const ext = path.extname(realName).toLowerCase();
-    const isVid = /\.(mp4|mkv|avi|webm|mov|flv|wmv|m4v|3gp)$/i.test(realName) || (ext === '' && /(1080p|720p|4k|2160p|webrip|web-dl|bluray|x264|x265|hevc|movie)/i.test(realName));
-    const isAud = /\.(mp3|flac|wav|ogg|m4a|aac)$/i.test(realName);
-    const isImg = /\.(jpg|jpeg|png|gif|webp)$/i.test(realName);
-    const isDoc = /\.(pdf|epub|mobi|doc|docx|txt)$/i.test(realName);
-    const isZip = /\.(zip|rar|7z|iso|tar|gz)$/i.test(realName);
+    const ext = path.extname(finalCleanNameStr).toLowerCase();
+    const isVid = /\.(mp4|mkv|avi|webm|mov|flv|wmv|m4v|3gp)$/i.test(finalCleanNameStr) || (ext === '' && /(1080p|720p|4k|2160p|webrip|web-dl|bluray|x264|x265|hevc|movie)/i.test(finalCleanNameStr));
+    const isAud = /\.(mp3|flac|wav|ogg|m4a|aac)$/i.test(finalCleanCleanNameStr || finalCleanNameStr);
+    const isImg = /\.(jpg|jpeg|png|gif|webp)$/i.test(finalCleanNameStr);
+    const isDoc = /\.(pdf|epub|mobi|doc|docx|txt)$/i.test(finalCleanNameStr);
+    const isZip = /\.(zip|rar|7z|iso|tar|gz)$/i.test(finalCleanNameStr) || true;
 
-    const fileType = isVid ? 'video' : isAud ? 'audio' : isImg ? 'image' : isDoc ? 'document' : isZip ? 'archive' : 'video';
-    const mimeType = isVid ? (ext === '.mkv' ? 'video/x-matroska' : 'video/mp4') : isAud ? 'audio/mpeg' : isZip ? 'application/zip' : getMimeType(realName);
+    const fileType = isVid ? 'video' : isAud ? 'audio' : isImg ? 'image' : isDoc ? 'document' : 'archive';
+    const mimeType = isVid ? (ext === '.mkv' ? 'video/x-matroska' : 'video/mp4') : isAud ? 'audio/mpeg' : isZip ? 'application/zip' : getMimeType(finalCleanNameStr);
 
     const fileId = `file_torrent_${Date.now()}`;
     const relativePath = `/api/files/uploads-serve/user_demo-user-123/${encodeURIComponent(timestampedName)}`;
 
     const file = {
       id: fileId,
-      name: realName,
-      originalFilename: realName,
+      name: finalCleanNameStr,
+      originalFilename: finalCleanNameStr,
       cleanFilename: timestampedName,
       type: fileType,
       mimeType,
@@ -440,7 +441,7 @@ router.post('/torrent', async (req, res) => {
 
     return res.json({
       success: true,
-      message: `Magnet Link for "${realName}" (${sizeFormatted}) fetched successfully!`,
+      message: `Magnet Link for "${finalCleanNameStr}" (${sizeFormatted}) fetched successfully!`,
       file
     });
   } catch (error) {
