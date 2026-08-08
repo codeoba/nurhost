@@ -23,7 +23,7 @@ export function detectFileType(filename = '', mimeType = '') {
   if (/\.(mp3|wav|ogg|flac|m4a|aac|wma)$/i.test(name)) {
     return 'audio';
   }
-  if (/\.(mp4|mkv|webm|avi|mov|flv|wmv)$/i.test(name)) {
+  if (/\.(mp4|mkv|webm|avi|mov|flv|wmv|m4v|3gp|ts|mts|m2ts|vob|ogv|divx|xvid|f4v)$/i.test(name)) {
     return 'video';
   }
   if (/\.(txt|htaccess|env|conf|ini|json|js|jsx|ts|tsx|html|css|py|php|sql|sh|md|xml|yml|yaml|log)$/i.test(name)) {

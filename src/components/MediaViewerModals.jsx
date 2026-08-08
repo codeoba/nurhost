@@ -12,39 +12,54 @@ export function VideoPlayerModal({ file, onClose, onShare, onToast }) {
       <div 
         className="modal-card animate-slide-up"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: '880px', width: '92vw', background: 'var(--bg-secondary)', overflow: 'hidden' }}
+        style={{ maxWidth: '900px', width: '92vw', background: 'var(--bg-secondary)', overflow: 'hidden' }}
       >
-        <div className="modal-header">
+        <div className="modal-header" style={{ padding: '12px 20px', background: 'var(--bg-tertiary)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-            <span className="badge badge-indigo">
-              <Film size={12} /> Video Player
+            <span className="badge badge-indigo" style={{ fontWeight: '700' }}>
+              🎬 Video Stream Player
             </span>
             <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {file.name}
             </span>
           </div>
-          <button onClick={onClose} className="btn btn-ghost btn-icon">
-            <X size={18} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <a
+              href={videoSrc}
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-ghost"
+              style={{ fontSize: '12px', color: 'var(--accent-cyan)' }}
+              title="Open direct video stream in browser or VLC"
+            >
+              Direct Stream ↗
+            </a>
+            <button onClick={onClose} className="btn btn-ghost btn-icon">
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
-        <div style={{ background: '#000000', width: '100%', minHeight: '340px', maxHeight: '520px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+        <div style={{ background: '#000000', width: '100%', minHeight: '360px', maxHeight: '540px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
           <video
             controls
             playsInline
             preload="auto"
             poster={file.poster}
-            style={{ width: '100%', maxHeight: '520px', objectFit: 'contain', background: '#000000' }}
+            style={{ width: '100%', maxHeight: '540px', objectFit: 'contain', background: '#000000' }}
           >
             <source src={videoSrc} type={mimeType} />
+            <source src={videoSrc} type="video/mp4" />
+            <source src={videoSrc} type="video/webm" />
+            <source src={videoSrc} type="video/x-matroska" />
             <source src={videoSrc} />
             Your browser does not support HTML5 video streaming.
           </video>
         </div>
 
-        <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
+        <div className="modal-footer" style={{ justifyContent: 'space-between', padding: '12px 20px' }}>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            Format: <strong>.{ext.toUpperCase()}</strong> • Size: <strong>{file.sizeFormatted}</strong>
+            Video Format: <strong style={{ color: 'var(--accent-indigo)' }}>.{ext.toUpperCase()}</strong> • Size: <strong>{file.sizeFormatted}</strong>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button onClick={() => { onClose(); onShare(file); }} className="btn btn-secondary" style={{ fontSize: '13px' }}>

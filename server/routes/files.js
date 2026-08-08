@@ -106,19 +106,30 @@ router.get("/uploads-serve/:userDir/:filename", (req, res) => {
     const ext = path.extname(filePath).toLowerCase();
     const mimeTypes = {
       '.mp4': 'video/mp4',
-      '.mkv': 'video/x-matroska',
+      '.mkv': 'video/mp4',
       '.webm': 'video/webm',
       '.avi': 'video/x-msvideo',
       '.mov': 'video/quicktime',
       '.flv': 'video/x-flv',
       '.wmv': 'video/x-ms-wmv',
+      '.m4v': 'video/mp4',
       '.3gp': 'video/3gpp',
+      '.ts': 'video/mp2t',
+      '.mts': 'video/mp2t',
+      '.m2ts': 'video/mp2t',
+      '.vob': 'video/dvd',
+      '.ogv': 'video/ogg',
+      '.divx': 'video/divx',
+      '.xvid': 'video/x-msvideo',
+      '.f4v': 'video/x-f4v',
       '.mp3': 'audio/mpeg',
       '.wav': 'audio/wav',
       '.ogg': 'audio/ogg',
       '.flac': 'audio/flac',
       '.m4a': 'audio/mp4',
       '.aac': 'audio/aac',
+      '.opus': 'audio/opus',
+      '.wma': 'audio/x-ms-wma',
       '.pdf': 'application/pdf',
       '.jpg': 'image/jpeg',
       '.jpeg': 'image/jpeg',
@@ -169,6 +180,7 @@ router.get("/uploads-serve/:userDir/:filename", (req, res) => {
     return res.status(500).send("Error serving file stream");
   }
 });
+
 // Helper to check if file on disk is a Zip archive by reading PK magic bytes
 function isZipFileOnDisk(filePath) {
   try {
@@ -208,7 +220,7 @@ router.get("/", (req, res) => {
       }
 
       const isImg = !isZip && /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)$/i.test(originalName);
-      const isVideo = !isZip && /\.(mp4|mkv|webm|avi|mov|flv|wmv|3gp)$/i.test(originalName);
+      const isVideo = !isZip && /\.(mp4|mkv|webm|avi|mov|flv|wmv|m4v|3gp|ts|mts|m2ts|vob|ogv|divx|xvid|f4v)$/i.test(originalName);
       const isAudio = !isZip && /\.(mp3|wav|ogg|flac|m4a|aac|opus|wma)$/i.test(originalName);
       const isCode = !isZip && (/\.(txt|htaccess|env|conf|ini|json|js|jsx|ts|tsx|html|css|py|php|sql|sh|md|xml|yml|yaml)$/i.test(originalName) || originalName.includes('htaccess') || originalName.includes('env'));
 
