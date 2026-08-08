@@ -43,6 +43,7 @@ echo -e "\n${YELLOW}[2/7] Kupakua code kutoka GitHub...${NC}"
 if [ -d "$APP_DIR/.git" ]; then
     echo "Repo ipo — inasasishwa..."
     cd $APP_DIR
+    git reset --hard HEAD || true
     git pull origin master
 else
     echo "Inachukua code mpya..."
