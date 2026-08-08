@@ -333,37 +333,61 @@ router.post("/upload", (req, res) => {
   });
 });
 
-// POST /api/files/new-text - Create New Text File Directly (Monaco Editor support)
+// POST /api/files/new-text - Create or Update Text File Directly (Monaco Editor support)
 router.post("/new-text", async (req, res) => {
   try {
-    const { fileId, filename = "untitled.txt", content = "", changeSummary = "Saved in Monaco Editor" } = req.body;
+    const { fileId, filename = "untitled.txt", content = "", changeSummary = "Saved in Text Editor" } = req.body;
     const { cleanFilename, originalFilename } = sanitizeFilename(filename);
 
-    const buffer = Buffer.from(content, "utf-8");
-    const storageResult = await uploadFile({
-      userId: DEMO_USER_ID,
-      cleanFilename,
-      buffer,
-      mimeType: "text/plain",
-    });
+    const uploadsDir = path.join(__dirname, '../uploads/user_demo-user-123');
+    if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+    let timestampedName = null;
+    let targetDiskPath = null;
+
+    if (fs.existsSync(uploadsDir)) {
+      const items = fs.readdirSync(uploadsDir);
+      for (const item of items) {
+        const orig = item.replace(/^\d+_/, '');
+        if (item === filename || orig === filename || (fileId && item.includes(fileId))) {
+          targetDiskPath = path.join(uploadsDir, item);
+          timestampedName = item;
+          break;
+        }
+      }
+    }
+
+    if (!timestampedName) {
+      timestampedName = `${Date.now()}_${cleanFilename}`;
+      targetDiskPath = path.join(uploadsDir, timestampedName);
+    }
+
+    fs.writeFileSync(targetDiskPath, content, "utf-8");
+    const size = Buffer.byteLength(content, "utf-8");
+    const sizeFormatted = size >= 1024 * 1024 ? `${(size / (1024 * 1024)).toFixed(1)} MB` : `${(size / 1024).toFixed(1)} KB`;
 
     const targetFileId = fileId || `file_${Date.now()}`;
-    const version = addFileVersion(targetFileId, cleanFilename, content, changeSummary);
+    const relativePath = `/api/files/uploads-serve/user_demo-user-123/${encodeURIComponent(timestampedName)}`;
 
-    res.json({
+    return res.json({
       success: true,
+      message: `Faili "${originalFilename}" limehifadhiwa kikamilifu!`,
       file: {
         id: targetFileId,
+        name: originalFilename,
         originalFilename,
-        cleanFilename,
+        cleanFilename: timestampedName,
         mimeType: "text/plain",
-        storagePath: storageResult.storagePath,
-        size: `${buffer.length} Bytes`,
-      },
-      version
+        size,
+        sizeFormatted,
+        storagePath: relativePath,
+        url: relativePath,
+        updatedAt: new Date().toISOString()
+      }
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Save text file error:", error);
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 

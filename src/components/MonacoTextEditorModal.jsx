@@ -1,29 +1,55 @@
 import React, { useState, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
-import { X, Save, FileCode, Check, AlertCircle } from 'lucide-react';
-import { createTextFile } from '../api';
+import { X, Save, FileCode, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { createTextFile, resolveFileUrl } from '../api';
 
 export default function MonacoTextEditorModal({ isOpen, onClose, initialFile = null, onSaved }) {
   const [filename, setFilename] = useState('');
-  const [content, setContent] = useState('// Write your code or text here...\n');
-  const [language, setLanguage] = useState('javascript');
+  const [content, setContent] = useState('');
+  const [language, setLanguage] = useState('plaintext');
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
 
   useEffect(() => {
-    if (initialFile) {
-      setFilename(initialFile.name || 'untitled.js');
-      setContent(initialFile.content || '');
-      setLanguage(detectLanguage(initialFile.name));
-    } else {
-      setFilename('new_document.js');
-      setContent('// NurHost In-Browser Code & Text Editor\nconsole.log("Hello NurHost!");\n');
-      setLanguage('javascript');
+    if (initialFile && isOpen) {
+      const fName = initialFile.name || initialFile.originalFilename || 'untitled.txt';
+      setFilename(fName);
+      setLanguage(detectLanguage(fName));
+
+      if (initialFile.content) {
+        setContent(initialFile.content);
+        setLoading(false);
+      } else {
+        const fileUrl = resolveFileUrl(initialFile.url, initialFile.cleanFilename, fName);
+        if (fileUrl) {
+          setLoading(true);
+          fetch(fileUrl)
+            .then(res => res.text())
+            .then(text => {
+              setContent(text);
+              setLoading(false);
+            })
+            .catch(err => {
+              console.warn("Error reading text file content:", err);
+              setContent(`// Could not read file content from server\n${err.message}`);
+              setLoading(false);
+            });
+        } else {
+          setContent('');
+          setLoading(false);
+        }
+      }
+    } else if (isOpen) {
+      setFilename('new_document.txt');
+      setContent('// NurHost In-Browser Text & Code Editor\n');
+      setLanguage('plaintext');
+      setLoading(false);
     }
   }, [initialFile, isOpen]);
 
   const detectLanguage = (fname) => {
-    if (!fname) return 'javascript';
+    if (!fname) return 'plaintext';
     const ext = fname.split('.').pop().toLowerCase();
     const map = {
       js: 'javascript',
@@ -40,7 +66,11 @@ export default function MonacoTextEditorModal({ isOpen, onClose, initialFile = n
       xml: 'xml',
       sh: 'shell',
       yaml: 'yaml',
-      yml: 'yaml'
+      yml: 'yaml',
+      txt: 'plaintext',
+      log: 'plaintext',
+      ini: 'plaintext',
+      conf: 'plaintext'
     };
     return map[ext] || 'plaintext';
   };
@@ -61,9 +91,10 @@ export default function MonacoTextEditorModal({ isOpen, onClose, initialFile = n
     setMessage(null);
 
     try {
-      const res = await createTextFile(filename, content);
+      const fileId = initialFile ? initialFile.id : null;
+      const res = await createTextFile(filename, content, fileId);
       setMessage({ type: 'success', text: 'Faili limehifadhiwa kikamilifu!' });
-      if (onSaved) onSaved(res.file);
+      if (onSaved) onSaved(res.file || { name: filename, content });
       setTimeout(() => {
         onClose();
       }, 1000);
@@ -158,6 +189,12 @@ export default function MonacoTextEditorModal({ isOpen, onClose, initialFile = n
 
         {/* Monaco Editor Container */}
         <div className="flex-1 w-full bg-[#1e1e1e] relative">
+          {loading && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#1e1e1e]/90 text-slate-300">
+              <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-2" />
+              <p className="text-xs">Inafungua maudhui ya faili...</p>
+            </div>
+          )}
           <Editor
             height="100%"
             language={language}

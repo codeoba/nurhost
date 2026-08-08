@@ -632,29 +632,41 @@ export default function App() {
         />
       )}
 
-      {/* In-Browser Monaco Text Editor Modal */}
+      {/* In-Browser Monaco Text Editor & Viewer Modal */}
       <MonacoTextEditorModal
-        isOpen={showMonacoModal}
-        onClose={() => setShowMonacoModal(false)}
-        onSaved={(newFile) => {
-          setFiles(prev => [{
-            id: newFile.id || `file-${Date.now()}`,
-            name: newFile.name,
-            type: 'code',
-            mimeType: 'text/plain',
-            size: newFile.size || 512,
-            sizeFormatted: '512 B',
-            url: '#',
-            shareCode: `code-${Date.now()}`,
-            shareUrl: `http://localhost:5173/share/code-${Date.now()}`,
-            folderId: currentFolderId,
-            isStarred: false,
-            isShared: false,
-            inTrash: false,
-            updatedAt: new Date().toISOString(),
-            createdAt: new Date().toISOString()
-          }, ...prev]);
-          triggerToast(`Created code file: ${newFile.name}`);
+        isOpen={showMonacoModal || !!previewCodeFile}
+        onClose={() => {
+          setShowMonacoModal(false);
+          setPreviewCodeFile(null);
+        }}
+        initialFile={previewCodeFile}
+        onSaved={(savedFile) => {
+          if (savedFile) {
+            setFiles(prev => {
+              const exists = prev.some(f => f.id === savedFile.id || f.name === savedFile.name);
+              if (exists) {
+                return prev.map(f => (f.id === savedFile.id || f.name === savedFile.name) ? { ...f, ...savedFile } : f);
+              } else {
+                return [{
+                  id: savedFile.id || `file-${Date.now()}`,
+                  name: savedFile.name,
+                  cleanFilename: savedFile.cleanFilename || savedFile.name,
+                  type: 'code',
+                  mimeType: 'text/plain',
+                  size: savedFile.size || 512,
+                  sizeFormatted: savedFile.sizeFormatted || '512 B',
+                  url: savedFile.url || '#',
+                  folderId: currentFolderId,
+                  isStarred: false,
+                  isShared: false,
+                  inTrash: false,
+                  updatedAt: new Date().toISOString(),
+                  createdAt: new Date().toISOString()
+                }, ...prev];
+              }
+            });
+          }
+          triggerToast(`Faili "${savedFile ? savedFile.name : 'text'}" limehifadhiwa kikamilifu!`);
         }}
       />
 
