@@ -409,7 +409,7 @@ router.post('/torrent', async (req, res) => {
     // Extension & Type Resolution
     const ext = path.extname(finalCleanNameStr).toLowerCase();
     const isVid = /\.(mp4|mkv|avi|webm|mov|flv|wmv|m4v|3gp)$/i.test(finalCleanNameStr) || (ext === '' && /(1080p|720p|4k|2160p|webrip|web-dl|bluray|x264|x265|hevc|movie)/i.test(finalCleanNameStr));
-    const isAud = /\.(mp3|flac|wav|ogg|m4a|aac)$/i.test(finalCleanCleanNameStr || finalCleanNameStr);
+    const isAud = /\.(mp3|flac|wav|ogg|m4a|aac)$/i.test(finalCleanNameStr);
     const isImg = /\.(jpg|jpeg|png|gif|webp)$/i.test(finalCleanNameStr);
     const isDoc = /\.(pdf|epub|mobi|doc|docx|txt)$/i.test(finalCleanNameStr);
     const isZip = /\.(zip|rar|7z|iso|tar|gz)$/i.test(finalCleanNameStr) || true;
