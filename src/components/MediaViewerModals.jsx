@@ -7,12 +7,16 @@ export function VideoPlayerModal({ file, onClose, onShare, onToast }) {
   const ext = (file.name.split('.').pop() || 'mp4').toLowerCase();
   const mimeType = file.mimeType || (ext === 'mkv' ? 'video/x-matroska' : ext === 'webm' ? 'video/webm' : 'video/mp4');
 
+  const fullAbsoluteVideoUrl = window.location.origin + videoSrc;
+  const isHevcOrDdp = /(x265|hevc|10bit|ddp5\.1|ddp|ac3|dts|truehd|e-ac-3)/i.test(file.name);
+  const vlcProtocolUrl = `vlc://${fullAbsoluteVideoUrl}`;
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div 
         className="modal-card animate-slide-up"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: '900px', width: '92vw', background: 'var(--bg-secondary)', overflow: 'hidden' }}
+        style={{ maxWidth: '920px', width: '94vw', background: 'var(--bg-secondary)', overflow: 'hidden' }}
       >
         <div className="modal-header" style={{ padding: '12px 20px', background: 'var(--bg-tertiary)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
@@ -30,7 +34,7 @@ export function VideoPlayerModal({ file, onClose, onShare, onToast }) {
               rel="noreferrer"
               className="btn btn-ghost"
               style={{ fontSize: '12px', color: 'var(--accent-cyan)' }}
-              title="Open direct video stream in browser or VLC"
+              title="Open direct HTTP video stream"
             >
               Direct Stream ↗
             </a>
@@ -39,6 +43,41 @@ export function VideoPlayerModal({ file, onClose, onShare, onToast }) {
             </button>
           </div>
         </div>
+
+        {/* Codec Banner for x265 / 10-Bit / DDP 5.1 Surround Movies */}
+        {isHevcOrDdp && (
+          <div style={{
+            background: 'rgba(245, 158, 11, 0.14)',
+            borderBottom: '1px solid rgba(245, 158, 11, 0.3)',
+            padding: '8px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            fontSize: '12px',
+            color: '#f59e0b'
+          }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              💡 <strong>Codec Info:</strong> Video uses <strong>x265 10-Bit & Dolby DDP 5.1 Audio</strong>. If your browser lacks Dolby decoders, click "Play in VLC"!
+            </span>
+            <a
+              href={vlcProtocolUrl}
+              className="btn"
+              style={{
+                background: '#f59e0b',
+                color: '#000000',
+                fontSize: '11px',
+                fontWeight: '800',
+                padding: '4px 12px',
+                borderRadius: '4px',
+                textDecoration: 'none',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              ▶ Play in VLC App
+            </a>
+          </div>
+        )}
 
         <div style={{ background: '#000000', width: '100%', minHeight: '360px', maxHeight: '540px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
           <video
@@ -49,9 +88,9 @@ export function VideoPlayerModal({ file, onClose, onShare, onToast }) {
             style={{ width: '100%', maxHeight: '540px', objectFit: 'contain', background: '#000000' }}
           >
             <source src={videoSrc} type={mimeType} />
+            <source src={videoSrc} type="video/x-matroska" />
             <source src={videoSrc} type="video/mp4" />
             <source src={videoSrc} type="video/webm" />
-            <source src={videoSrc} type="video/x-matroska" />
             <source src={videoSrc} />
             Your browser does not support HTML5 video streaming.
           </video>
@@ -62,6 +101,9 @@ export function VideoPlayerModal({ file, onClose, onShare, onToast }) {
             Video Format: <strong style={{ color: 'var(--accent-indigo)' }}>.{ext.toUpperCase()}</strong> • Size: <strong>{file.sizeFormatted}</strong>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
+            <a href={vlcProtocolUrl} className="btn btn-secondary" style={{ fontSize: '13px', textDecoration: 'none', color: '#f59e0b' }}>
+              ▶ VLC App
+            </a>
             <button onClick={() => { onClose(); onShare(file); }} className="btn btn-secondary" style={{ fontSize: '13px' }}>
               <Share2 size={16} /> Share Video
             </button>
