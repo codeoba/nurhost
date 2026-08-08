@@ -440,7 +440,16 @@ function deleteFileFromDisk(identifier) {
   const uploadsDir = path.join(__dirname, '../uploads');
   if (!fs.existsSync(uploadsDir)) return false;
 
-  const targetName = decodeURIComponent(identifier).trim();
+  const rawTarget = decodeURIComponent(identifier || '').trim();
+  if (!rawTarget) return false;
+
+  // Clean target identifiers (remove srv-file- prefixes or url paths)
+  const cleanTarget = rawTarget
+    .replace(/^srv-file-\d+-/i, '')
+    .replace(/\/api\/files\/uploads-serve\/[^\/]+\//i, '')
+    .replace(/^[^\_]+_/, '') // remove timestamp prefix if needed
+    .trim();
+
   let deletedAny = false;
 
   function searchAndDelete(dir) {
@@ -448,17 +457,29 @@ function deleteFileFromDisk(identifier) {
     const items = fs.readdirSync(dir);
     for (const item of items) {
       const fullPath = path.join(dir, item);
-      const stat = fs.statSync(fullPath);
+      let stat;
+      try {
+        stat = fs.statSync(fullPath);
+      } catch (e) {
+        continue;
+      }
       if (stat.isDirectory()) {
         searchAndDelete(fullPath);
       } else {
-        const originalName = item.replace(/^\d+_/, '');
-        if (
-          item === targetName ||
-          originalName === targetName ||
-          item.includes(targetName) ||
-          fullPath.includes(targetName)
-        ) {
+        const diskOriginalName = item.replace(/^\d+_/, '');
+        const diskTimestampedName = item;
+
+        // Check for exact or partial matches
+        const matches = (
+          item === rawTarget ||
+          diskOriginalName === rawTarget ||
+          diskTimestampedName === rawTarget ||
+          (cleanTarget && item.includes(cleanTarget)) ||
+          (cleanTarget && diskOriginalName.includes(cleanTarget)) ||
+          (rawTarget.length > 5 && fullPath.includes(rawTarget))
+        );
+
+        if (matches) {
           try {
             fs.unlinkSync(fullPath);
             console.log(`🗑️ Permanently deleted physical file from disk: ${fullPath}`);

@@ -161,9 +161,9 @@ export async function extractSelectiveZip(fileIdOrName, selectedIndices, targetF
   }
 }
 
-export async function deleteFileApi(fileId, cleanFilename = '') {
+export async function deleteFileApi(fileId, cleanFilename = '', name = '') {
   try {
-    const targetQuery = encodeURIComponent(cleanFilename || fileId);
+    const targetQuery = encodeURIComponent(cleanFilename || name || fileId);
     const res = await fetch(`${API_BASE_URL}/files/${targetQuery}`, {
       method: "DELETE",
     });

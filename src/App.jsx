@@ -65,7 +65,33 @@ export default function App() {
   useEffect(() => {
     fetchFilesAndFolders().then(data => {
       if (data && data.success && Array.isArray(data.files)) {
-        setFiles(data.files);
+        let localStateMap = {};
+        try {
+          const saved = JSON.parse(localStorage.getItem('nurhost_files') || '[]');
+          saved.forEach(f => {
+            const k1 = f.cleanFilename || f.name || f.id;
+            const k2 = f.id;
+            if (k1) localStateMap[k1] = f;
+            if (k2) localStateMap[k2] = f;
+          });
+        } catch (e) {}
+
+        const mergedFiles = data.files.map(sf => {
+          const key1 = sf.cleanFilename || sf.name || sf.id;
+          const key2 = sf.id;
+          const localItem = localStateMap[key1] || localStateMap[key2];
+          if (localItem) {
+            return {
+              ...sf,
+              inTrash: localItem.inTrash || false,
+              isStarred: localItem.isStarred || false,
+              folderId: localItem.folderId || null
+            };
+          }
+          return sf;
+        });
+
+        setFiles(mergedFiles);
       }
     }).catch(err => console.warn("Could not sync server files:", err));
   }, []);
@@ -249,7 +275,10 @@ export default function App() {
     const targetFile = files.find(f => f.id === id);
     if (targetFile) {
       try {
-        await deleteFileApi(targetFile.id, targetFile.cleanFilename || targetFile.name);
+        await deleteFileApi(targetFile.id, targetFile.cleanFilename || targetFile.name, targetFile.name);
+        if (targetFile.cleanFilename && targetFile.cleanFilename !== targetFile.name) {
+          await deleteFileApi(targetFile.cleanFilename, targetFile.name);
+        }
       } catch (e) {}
     }
     const updated = files.filter(f => f.id !== id);
@@ -267,11 +296,14 @@ export default function App() {
 
   const handleBulkPermanentDelete = async (ids) => {
     const targets = files.filter(f => ids.includes(f.id));
+    const allNames = [];
+    targets.forEach(t => {
+      if (t.id) allNames.push(t.id);
+      if (t.cleanFilename) allNames.push(t.cleanFilename);
+      if (t.name) allNames.push(t.name);
+    });
     try {
-      await deleteBatchFilesApi(
-        targets.map(f => f.id),
-        targets.map(f => f.cleanFilename || f.name)
-      );
+      await deleteBatchFilesApi(ids, allNames);
     } catch (e) {}
     const updated = files.filter(f => !ids.includes(f.id));
     setFiles(updated);
