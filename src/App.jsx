@@ -229,6 +229,12 @@ export default function App() {
       return;
     }
 
+    // 4. Text & Code File Guard (txt, md, log, json, lic, url, js, py, css, etc.)
+    if (['txt', 'csv', 'md', 'log', 'json', 'xml', 'js', 'jsx', 'ts', 'tsx', 'html', 'css', 'py', 'php', 'sql', 'sh', 'ini', 'conf', 'yaml', 'yml', 'lic', 'url', 'env', 'htaccess'].includes(ext) || (file.mimeType && file.mimeType.startsWith('text/'))) {
+      setPreviewCodeFile(file);
+      return;
+    }
+
     const detected = detectFileType(name, file.mimeType);
 
     if (detected === 'archive') {
@@ -239,7 +245,7 @@ export default function App() {
       setPreviewVideoFile(file);
     } else if (detected === 'image') {
       setPreviewImageFile(file);
-    } else if (detected === 'code' || ['txt', 'csv', 'md', 'log', 'json', 'xml'].includes(ext)) {
+    } else if (detected === 'code') {
       setPreviewCodeFile(file);
     } else {
       setPreviewDetailFile(file);
