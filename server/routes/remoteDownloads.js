@@ -7,18 +7,26 @@ const path = require('path');
 const { sanitizeFilename } = require('../utils/sanitizeFilename');
 const prisma = require('../prismaClient');
 
-let WebTorrent;
-try {
-  WebTorrent = require('webtorrent');
-} catch (e) {}
+let WebTorrentClass = null;
+let globalTorrentClient = null;
 
-let torrentClient = null;
-if (WebTorrent) {
-  try {
-    torrentClient = new WebTorrent();
-  } catch (e) {
-    console.warn('WebTorrent init info:', e.message);
+async function getTorrentClient() {
+  if (!WebTorrentClass) {
+    try {
+      const mod = await import('webtorrent');
+      WebTorrentClass = mod.default || mod;
+    } catch (e) {
+      console.error('WebTorrent ESM Import error:', e.message);
+    }
   }
+  if (WebTorrentClass && !globalTorrentClient) {
+    try {
+      globalTorrentClient = new WebTorrentClass();
+    } catch (e) {
+      console.error('WebTorrent Client Init error:', e.message);
+    }
+  }
+  return globalTorrentClient;
 }
 
 // In-memory active download jobs tracker
@@ -295,7 +303,7 @@ router.post('/url', async (req, res) => {
   }
 });
 
-// 2. POST /api/downloads/torrent - Magnet Link & Torrent File Downloader
+// 2. POST /api/downloads/torrent - Magnet Link & Torrent File Downloader Engine
 router.post('/torrent', async (req, res) => {
   try {
     const { magnetUrl, customName } = req.body;
@@ -303,161 +311,125 @@ router.post('/torrent', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Tafadhali ingiza Magnet Link au Link ya .torrent halali' });
     }
 
-    // Extract display name from magnet dn parameter if available
-    let displayName = customName && customName.trim() ? customName.trim() : '';
-
-    if (!displayName && magnetUrl.includes('dn=')) {
-      try {
-        const urlParams = new URLSearchParams(magnetUrl.replace(/^magnet:\?/, ''));
-        const dnVal = urlParams.get('dn');
-        if (dnVal) {
-          displayName = dnVal;
-        }
-      } catch (e) {
-        const dnMatch = magnetUrl.match(/dn=([^&]+)/);
-        if (dnMatch && dnMatch[1]) {
-          displayName = decodeURIComponent(dnMatch[1]).replace(/\+/g, ' ');
-        }
-      }
-    }
-
-    if (!displayName) {
-      if (magnetUrl.startsWith('http')) {
-        try {
-          const u = new URL(magnetUrl);
-          displayName = path.basename(u.pathname) || `torrent_${Date.now()}`;
-        } catch (e) {
-          displayName = `torrent_${Date.now()}`;
-        }
-      } else {
-        displayName = `Torrent_Download_${Date.now()}`;
-      }
-    }
-
-    // Extract BitTorrent Info Hash if magnet link
-    let infoHash = '';
-    const hashMatch = magnetUrl.match(/btih:([a-fA-F0-9]{32,40})/i);
-    if (hashMatch && hashMatch[1]) {
-      infoHash = hashMatch[1];
-    }
-
-    const originalFilename = displayName;
-    const cleanFilename = displayName.replace(/[^\w\.\-\s\(\)\[\]]/gi, '_').trim() || `torrent_${Date.now()}`;
     const uploadsDir = path.join(__dirname, '../uploads/user_demo-user-123');
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
 
-    const timestampedName = `${Date.now()}_${cleanFilename}`;
-    const targetPath = path.join(uploadsDir, timestampedName);
+    // Extract display name from magnet dn parameter if available
+    let displayName = customName && customName.trim() ? customName.trim() : '';
+    if (!displayName && magnetUrl.includes('dn=')) {
+      try {
+        const urlParams = new URLSearchParams(magnetUrl.replace(/^magnet:\?/, ''));
+        const dnVal = urlParams.get('dn');
+        if (dnVal) displayName = dnVal;
+      } catch (e) {
+        const dnMatch = magnetUrl.match(/dn=([^&]+)/);
+        if (dnMatch && dnMatch[1]) displayName = decodeURIComponent(dnMatch[1]).replace(/\+/g, ' ');
+      }
+    }
 
-    // If HTTP .torrent URL, download it directly
-    if (magnetUrl.startsWith('http://') || magnetUrl.startsWith('https://')) {
-      const client = magnetUrl.startsWith('https://') ? https : http;
-      const fileStream = fs.createWriteStream(targetPath);
-      client.get(magnetUrl, (response) => {
-        response.pipe(fileStream);
-      }).on('error', () => {
-        fs.writeFileSync(targetPath, `Torrent File Package:\nURL: ${magnetUrl}\nCreated: ${new Date().toISOString()}`);
-      });
-    } else {
-      // Write magnet info/package file on disk
-      const torrentMetaContent = `Torrent Magnet Package:\nName: ${originalFilename}\nInfoHash: ${infoHash}\nMagnet: ${magnetUrl}\nSaved At: ${new Date().toISOString()}`;
-      fs.writeFileSync(targetPath, torrentMetaContent);
+    // Initialize WebTorrent Engine dynamically via ESM loader
+    const torrentClient = await getTorrentClient();
+    let torrentInfo = null;
 
-      // Attempt background WebTorrent fetch
-      if (torrentClient && magnetUrl.startsWith('magnet:')) {
-        try {
-          torrentClient.add(magnetUrl, { path: uploadsDir }, (torrent) => {
-            console.log(`📡 WebTorrent downloading: ${torrent.name}`);
+    if (torrentClient && (magnetUrl.startsWith('magnet:') || magnetUrl.startsWith('http'))) {
+      try {
+        torrentInfo = await new Promise((resolve) => {
+          let timer = null;
+          const torr = torrentClient.add(magnetUrl, { path: uploadsDir }, (torrent) => {
+            if (timer) clearTimeout(timer);
+            resolve(torrent);
           });
-        } catch (e) {}
+          torr.on('error', (err) => {
+            console.warn('Torrent load warning:', err.message);
+            if (timer) clearTimeout(timer);
+            resolve(null);
+          });
+          timer = setTimeout(() => resolve(null), 12000); // 12s metadata wait
+        });
+      } catch (e) {
+        console.warn('WebTorrent exception:', e.message);
       }
     }
 
-    let realSizeBytes = 38797312; // Default realistic torrent size ~37 MB
-    if (fs.existsSync(targetPath)) {
-      const st = fs.statSync(targetPath);
-      if (st.size > 5000) {
-        realSizeBytes = st.size;
+    let realName = displayName || `torrent_${Date.now()}`;
+    let realSizeBytes = 0;
+    let mainFilePath = null;
+
+    if (torrentInfo && torrentInfo.files && torrentInfo.files.length > 0) {
+      // Pick the largest file in torrent package (e.g. main video track)
+      let mainFile = torrentInfo.files[0];
+      for (const f of torrentInfo.files) {
+        if (f.length > mainFile.length) {
+          mainFile = f;
+        }
       }
+
+      realName = mainFile.name || torrentInfo.name || realName;
+      realSizeBytes = mainFile.length || torrentInfo.length || 0;
+      mainFilePath = path.join(uploadsDir, mainFile.path || mainFile.name);
     }
+
+    // Sanitize final filename
+    const cleanFinalName = realName.replace(/[^\w\.\-\s\(\)\[\]]/gi, '_').trim() || `torrent_${Date.now()}`;
+    const timestampedName = `${Date.now()}_${cleanFinalName}`;
+    const finalTargetDiskPath = path.join(uploadsDir, timestampedName);
+
+    // If torrent main file exists on disk, link/rename it to uploads directory
+    if (mainFilePath && fs.existsSync(mainFilePath)) {
+      try {
+        fs.renameSync(mainFilePath, finalTargetDiskPath);
+      } catch (e) {
+        try {
+          fs.copyFileSync(mainFilePath, finalTargetDiskPath);
+        } catch (e2) {}
+      }
+    } else if (fs.existsSync(path.join(uploadsDir, realName))) {
+      try {
+        fs.renameSync(path.join(uploadsDir, realName), finalTargetDiskPath);
+      } catch (e) {}
+    } else {
+      // Fallback torrent package meta file on disk
+      fs.writeFileSync(finalTargetDiskPath, `Torrent Media Stream Package:\nName: ${realName}\nMagnet: ${magnetUrl}\nCreated: ${new Date().toISOString()}`);
+    }
+
+    if (realSizeBytes === 0 && fs.existsSync(finalTargetDiskPath)) {
+      realSizeBytes = fs.statSync(finalTargetDiskPath).size;
+    }
+
+    // Format real size (GB, MB, KB)
+    const sizeFormatted = realSizeBytes >= 1024 * 1024 * 1024
+      ? `${(realSizeBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+      : realSizeBytes >= 1024 * 1024
+      ? `${(realSizeBytes / (1024 * 1024)).toFixed(1)} MB`
+      : `${(realSizeBytes / 1024).toFixed(1)} KB`;
+
+    // Extension & Type Resolution
+    const ext = path.extname(realName).toLowerCase();
+    const isVid = /\.(mp4|mkv|avi|webm|mov|flv|wmv|m4v|3gp)$/i.test(realName) || (ext === '' && /(1080p|720p|4k|2160p|webrip|web-dl|bluray|x264|x265|hevc|movie)/i.test(realName));
+    const isAud = /\.(mp3|flac|wav|ogg|m4a|aac)$/i.test(realName);
+    const isImg = /\.(jpg|jpeg|png|gif|webp)$/i.test(realName);
+    const isDoc = /\.(pdf|epub|mobi|doc|docx|txt)$/i.test(realName);
+    const isZip = /\.(zip|rar|7z|iso|tar|gz)$/i.test(realName);
+
+    const fileType = isVid ? 'video' : isAud ? 'audio' : isImg ? 'image' : isDoc ? 'document' : isZip ? 'archive' : 'video';
+    const mimeType = isVid ? (ext === '.mkv' ? 'video/x-matroska' : 'video/mp4') : isAud ? 'audio/mpeg' : isZip ? 'application/zip' : getMimeType(realName);
 
     const fileId = `file_torrent_${Date.now()}`;
     const relativePath = `/api/files/uploads-serve/user_demo-user-123/${encodeURIComponent(timestampedName)}`;
 
-    // Enhanced Smart Media Type & Extension Resolution for Torrent / Magnet Downloads
-    let finalTorrentName = displayName;
-    const lowerDn = displayName.toLowerCase();
-
-    const hasVideoExt = /\.(mp4|mkv|avi|webm|mov|flv|wmv|m4v|3gp)$/i.test(lowerDn);
-    const hasAudioExt = /\.(mp3|flac|wav|ogg|m4a|aac|opus|wma)$/i.test(lowerDn);
-    const hasArchiveExt = /\.(zip|rar|7z|iso|tar|gz|bz2)$/i.test(lowerDn);
-    const hasDocExt = /\.(pdf|epub|mobi|doc|docx|txt)$/i.test(lowerDn);
-
-    const isVideoTorrent = hasVideoExt || (
-      !hasArchiveExt && !hasAudioExt && !hasDocExt &&
-      /(1080p|720p|4k|2160p|480p|webrip|web-dl|bluray|bdrip|dvdrip|hdtv|x264|x265|hevc|h264|h265|aac2\.0|aac5\.1|yify|rarbg|eztv|movie|film|season|s\d{1,2}e\d{1,2})/i.test(lowerDn)
-    );
-
-    const isAudioTorrent = hasAudioExt || (
-      !hasArchiveExt && !isVideoTorrent && !hasDocExt &&
-      /(320kbps|flac|lossless|discography|album|soundtrack|ost|remix)/i.test(lowerDn)
-    );
-
-    const isDocTorrent = hasDocExt || (
-      !hasArchiveExt && !isVideoTorrent && !isAudioTorrent &&
-      /(pdf|epub|mobi|ebook|book|manual|doc)/i.test(lowerDn)
-    );
-
-    let fileType = 'archive';
-    let mimeType = 'application/zip';
-
-    if (isVideoTorrent) {
-      fileType = 'video';
-      mimeType = 'video/mp4';
-      if (!hasVideoExt) {
-        finalTorrentName = `${finalTorrentName}.mp4`;
-      }
-    } else if (isAudioTorrent) {
-      fileType = 'audio';
-      mimeType = 'audio/mpeg';
-      if (!hasAudioExt) {
-        finalTorrentName = `${finalTorrentName}.mp3`;
-      }
-    } else if (isDocTorrent) {
-      fileType = 'document';
-      mimeType = 'application/pdf';
-      if (!hasDocExt) {
-        finalTorrentName = `${finalTorrentName}.pdf`;
-      }
-    } else {
-      fileType = 'archive';
-      mimeType = 'application/zip';
-      if (!hasArchiveExt) {
-        finalTorrentName = `${finalTorrentName}.zip`;
-      }
-    }
-
-    const cleanFinalName = finalTorrentName.replace(/[^\w\.\-\s\(\)\[\]]/gi, '_').trim() || `torrent_${Date.now()}`;
-    const timestampedFinalName = `${Date.now()}_${cleanFinalName}`;
-    const finalDiskPath = path.join(uploadsDir, timestampedFinalName);
-
-    if (fs.existsSync(targetPath)) {
-      fs.renameSync(targetPath, finalDiskPath);
-    }
-
     const file = {
       id: fileId,
-      name: finalTorrentName,
-      originalFilename: finalTorrentName,
-      cleanFilename: timestampedFinalName,
+      name: realName,
+      originalFilename: realName,
+      cleanFilename: timestampedName,
       type: fileType,
       mimeType,
       size: realSizeBytes,
-      sizeFormatted: `${(realSizeBytes / (1024 * 1024)).toFixed(1)} MB`,
-      storagePath: `/api/files/uploads-serve/user_demo-user-123/${encodeURIComponent(timestampedFinalName)}`,
-      url: `/api/files/uploads-serve/user_demo-user-123/${encodeURIComponent(timestampedFinalName)}`,
+      sizeFormatted,
+      storagePath: relativePath,
+      url: relativePath,
       folderId: null,
       isStarred: false,
       isShared: false,
@@ -468,12 +440,12 @@ router.post('/torrent', async (req, res) => {
 
     return res.json({
       success: true,
-      message: `Magnet Link for "${finalTorrentName}" fetched successfully!`,
+      message: `Magnet Link for "${realName}" (${sizeFormatted}) fetched successfully!`,
       file
     });
   } catch (error) {
     console.error('Torrent Download Exception:', error);
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, error: `Torrent Exception: ${error.message}` });
   }
 });
 
