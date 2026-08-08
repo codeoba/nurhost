@@ -183,6 +183,51 @@ export async function extractSelectiveZip(fileIdOrName, selectedIndices, targetF
   }
 }
 
+export async function deleteZipEntryApi(fileIdOrName, entryName) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/extract/delete-entry`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileId: fileIdOrName, entryName }),
+    });
+    const data = await safeJsonParse(res);
+    if (res.ok && data && data.success) return data;
+    return { success: false, error: (data && data.error) || 'Imeshindwa kufuta faili kwenye Zip' };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function readZipEntryTextApi(fileIdOrName, entryName) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/extract/read-entry-text`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileId: fileIdOrName, entryName }),
+    });
+    const data = await safeJsonParse(res);
+    if (res.ok && data && data.success) return data;
+    return { success: false, content: '' };
+  } catch (error) {
+    return { success: false, content: '' };
+  }
+}
+
+export async function updateZipEntryTextApi(fileIdOrName, entryName, text) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/extract/update-entry-text`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileId: fileIdOrName, entryName, text }),
+    });
+    const data = await safeJsonParse(res);
+    if (res.ok && data && data.success) return data;
+    return { success: false, error: (data && data.error) || 'Imeshindwa kuhifadhi mabadiliko kwenye Zip' };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
 export async function deleteFileApi(fileId, cleanFilename = '', name = '') {
   try {
     const targetQuery = encodeURIComponent(cleanFilename || name || fileId);

@@ -227,4 +227,140 @@ router.post('/extract-selective', async (req, res) => {
   }
 });
 
+// 3. Delete specific entry directly inside zip archive on disk
+router.post('/delete-entry', async (req, res) => {
+  try {
+    const { fileId, entryName } = req.body;
+    const decodedFileId = decodeURIComponent(fileId);
+    const uploadsBase = path.join(__dirname, '../uploads');
+
+    function searchZip(dir) {
+      if (!fs.existsSync(dir)) return null;
+      const items = fs.readdirSync(dir);
+      for (const item of items) {
+        const full = path.join(dir, item);
+        const stat = fs.statSync(full);
+        if (stat.isDirectory()) {
+          const found = searchZip(full);
+          if (found) return found;
+        } else if (item === decodedFileId || item.endsWith(decodedFileId) || item.includes(decodedFileId)) {
+          if (full.endsWith('.zip') || item.includes('.zip')) return full;
+        }
+      }
+      return null;
+    }
+
+    const zipPath = searchZip(uploadsBase);
+    if (!zipPath || !fs.existsSync(zipPath)) {
+      return res.status(404).json({ success: false, error: 'Zip file not found on disk' });
+    }
+
+    const zip = new AdmZip(zipPath);
+    zip.deleteFile(entryName);
+    zip.writeZip(zipPath);
+
+    const updatedEntries = zip.getEntries()
+      .filter(e => !e.isDirectory)
+      .map((e, i) => ({
+        index: i,
+        entryName: e.entryName,
+        name: e.name || path.basename(e.entryName),
+        size: e.header.size,
+        cleanName: sanitizeFilename(e.name || 'unnamed').cleanFilename
+      }));
+
+    return res.json({
+      success: true,
+      message: `Faili "${entryName}" limefutwa kutoka ndani ya Zip!`,
+      totalEntries: updatedEntries.length,
+      entries: updatedEntries
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 4. Read text content of entry inside zip archive
+router.post('/read-entry-text', async (req, res) => {
+  try {
+    const { fileId, entryName } = req.body;
+    const decodedFileId = decodeURIComponent(fileId);
+    const uploadsBase = path.join(__dirname, '../uploads');
+
+    function searchZip(dir) {
+      if (!fs.existsSync(dir)) return null;
+      const items = fs.readdirSync(dir);
+      for (const item of items) {
+        const full = path.join(dir, item);
+        const stat = fs.statSync(full);
+        if (stat.isDirectory()) {
+          const found = searchZip(full);
+          if (found) return found;
+        } else if (item === decodedFileId || item.endsWith(decodedFileId) || item.includes(decodedFileId)) {
+          if (full.endsWith('.zip') || item.includes('.zip')) return full;
+        }
+      }
+      return null;
+    }
+
+    const zipPath = searchZip(uploadsBase);
+    if (!zipPath || !fs.existsSync(zipPath)) {
+      return res.status(404).json({ success: false, error: 'Zip file not found on disk' });
+    }
+
+    const zip = new AdmZip(zipPath);
+    const content = zip.readAsText(entryName);
+
+    return res.json({
+      success: true,
+      entryName,
+      content: content || ''
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 5. Update text content of entry directly inside zip archive
+router.post('/update-entry-text', async (req, res) => {
+  try {
+    const { fileId, entryName, text } = req.body;
+    const decodedFileId = decodeURIComponent(fileId);
+    const uploadsBase = path.join(__dirname, '../uploads');
+
+    function searchZip(dir) {
+      if (!fs.existsSync(dir)) return null;
+      const items = fs.readdirSync(dir);
+      for (const item of items) {
+        const full = path.join(dir, item);
+        const stat = fs.statSync(full);
+        if (stat.isDirectory()) {
+          const found = searchZip(full);
+          if (found) return found;
+        } else if (item === decodedFileId || item.endsWith(decodedFileId) || item.includes(decodedFileId)) {
+          if (full.endsWith('.zip') || item.includes('.zip')) return full;
+        }
+      }
+      return null;
+    }
+
+    const zipPath = searchZip(uploadsBase);
+    if (!zipPath || !fs.existsSync(zipPath)) {
+      return res.status(404).json({ success: false, error: 'Zip file not found on disk' });
+    }
+
+    const zip = new AdmZip(zipPath);
+    zip.updateFile(entryName, Buffer.from(text, 'utf-8'));
+    zip.writeZip(zipPath);
+
+    return res.json({
+      success: true,
+      message: `Maudhui ya "${entryName}" yamehifadhiwa ndani ya Zip!`,
+      entryName
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 module.exports = router;

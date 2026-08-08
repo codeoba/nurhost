@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Archive, CheckSquare, Square, Download, Check, AlertCircle, FileText } from 'lucide-react';
-import { inspectZipFile, extractSelectiveZip } from '../api';
+import { X, Archive, CheckSquare, Square, Download, Check, AlertCircle, FileText, Trash2, Edit3, Save, Loader2 } from 'lucide-react';
+import { inspectZipFile, extractSelectiveZip, deleteZipEntryApi, readZipEntryTextApi, updateZipEntryTextApi } from '../api';
 
 export default function ZipUnzipModal({ isOpen, onClose, zipFile, onExtracted }) {
   const [loading, setLoading] = useState(false);
@@ -8,6 +8,12 @@ export default function ZipUnzipModal({ isOpen, onClose, zipFile, onExtracted })
   const [selectedIndices, setSelectedIndices] = useState([]);
   const [extracting, setExtracting] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
+
+  // In-Zip Text Editing State
+  const [editingEntry, setEditingEntry] = useState(null);
+  const [editingText, setEditingText] = useState('');
+  const [loadingText, setLoadingText] = useState(false);
+  const [savingText, setSavingText] = useState(false);
 
   useEffect(() => {
     if (isOpen && zipFile) {
@@ -81,6 +87,61 @@ export default function ZipUnzipModal({ isOpen, onClose, zipFile, onExtracted })
       setStatusMessage({ type: 'error', text: 'Mchakato wa kutatua zip umefeli. Jaribu tena.' });
     } finally {
       setExtracting(false);
+    }
+  };
+
+  const handleDeleteEntry = async (e, entry) => {
+    e.stopPropagation();
+    if (!window.confirm(`Je, una uhakika unataka kufuta faili "${entry.name}" kutoka ndani ya Zip?`)) return;
+
+    setStatusMessage(null);
+    try {
+      const targetQuery = zipFile.cleanFilename || zipFile.name || zipFile.id;
+      const res = await deleteZipEntryApi(targetQuery, entry.entryName);
+      if (res.success && res.entries) {
+        setEntries(res.entries);
+        setSelectedIndices(res.entries.map(e => e.index));
+        setStatusMessage({ type: 'success', text: `Faili "${entry.name}" limefutwa kwenye Zip!` });
+      } else {
+        setStatusMessage({ type: 'error', text: res.error || 'Imeshindwa kufuta faili kwenye Zip.' });
+      }
+    } catch (err) {
+      console.error(err);
+      setStatusMessage({ type: 'error', text: 'Imeshindwa kufuta faili kwenye Zip.' });
+    }
+  };
+
+  const handleOpenEditEntry = async (e, entry) => {
+    e.stopPropagation();
+    setEditingEntry(entry);
+    setLoadingText(true);
+    try {
+      const targetQuery = zipFile.cleanFilename || zipFile.name || zipFile.id;
+      const res = await readZipEntryTextApi(targetQuery, entry.entryName);
+      setEditingText(res.content || '');
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingText(false);
+    }
+  };
+
+  const handleSaveEditedText = async () => {
+    if (!editingEntry) return;
+    setSavingText(true);
+    try {
+      const targetQuery = zipFile.cleanFilename || zipFile.name || zipFile.id;
+      const res = await updateZipEntryTextApi(targetQuery, editingEntry.entryName, editingText);
+      if (res.success) {
+        setStatusMessage({ type: 'success', text: `Maudhui ya "${editingEntry.name}" yamehifadhiwa ndani ya Zip!` });
+        setEditingEntry(null);
+      } else {
+        setStatusMessage({ type: 'error', text: res.error || 'Imeshindwa kuhifadhi ndani ya Zip.' });
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSavingText(false);
     }
   };
 
@@ -176,6 +237,9 @@ export default function ZipUnzipModal({ isOpen, onClose, zipFile, onExtracted })
           ) : (
             entries.map((entry) => {
               const isSelected = selectedIndices.includes(entry.index);
+              const ext = (entry.name.split('.').pop() || '').toLowerCase();
+              const isEditableText = ['txt', 'nfo', 'md', 'log', 'json', 'csv', 'js', 'py', 'html', 'css', 'ini', 'conf', 'xml'].includes(ext);
+
               return (
                 <div
                   key={entry.index}
@@ -192,7 +256,7 @@ export default function ZipUnzipModal({ isOpen, onClose, zipFile, onExtracted })
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
                     {!entry.isDirectory ? (
                       isSelected ? (
                         <CheckSquare size={16} color="var(--accent-primary)" />
@@ -203,19 +267,114 @@ export default function ZipUnzipModal({ isOpen, onClose, zipFile, onExtracted })
                       <div style={{ width: '16px' }} />
                     )}
                     <FileText size={16} color={entry.isDirectory ? 'var(--accent-amber)' : 'var(--text-secondary)'} />
-                    <div style={{ minWidth: 0 }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
                       <p style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{entry.entryName}</p>
                     </div>
                   </div>
 
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                    {entry.isDirectory ? 'Folda' : formatSize(entry.size)}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                      {entry.isDirectory ? 'Folda' : formatSize(entry.size)}
+                    </span>
+
+                    {!entry.isDirectory && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {isEditableText && (
+                          <button
+                            onClick={(e) => handleOpenEditEntry(e, entry)}
+                            className="btn btn-ghost btn-icon"
+                            style={{ color: 'var(--accent-cyan)', padding: '4px' }}
+                            title="Edit text inside Zip"
+                          >
+                            <Edit3 size={15} />
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => handleDeleteEntry(e, entry)}
+                          className="btn btn-ghost btn-icon"
+                          style={{ color: '#ef4444', padding: '4px' }}
+                          title="Delete file from inside Zip"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })
           )}
         </div>
+
+        {/* Inline In-Zip Text Editor Sub-Modal */}
+        {editingEntry && (
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 100,
+            background: 'rgba(13, 17, 23, 0.96)',
+            backdropFilter: 'blur(12px)',
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '20px',
+            borderRadius: 'var(--radius-lg)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Edit3 size={18} color="var(--accent-cyan)" />
+                <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#fff', margin: 0 }}>
+                  Editing "{editingEntry.name}" Inside Zip Archive
+                </h4>
+              </div>
+              <button onClick={() => setEditingEntry(null)} className="btn btn-ghost btn-icon">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', marginBottom: '14px' }}>
+              {loadingText ? (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                  <Loader2 size={28} className="animate-spin" style={{ color: 'var(--accent-cyan)', marginBottom: '8px' }} />
+                  <span style={{ fontSize: '12px' }}>Inasoma maandishi kutoka ndani ya Zip...</span>
+                </div>
+              ) : (
+                <textarea
+                  value={editingText}
+                  onChange={(e) => setEditingText(e.target.value)}
+                  style={{
+                    flex: 1,
+                    width: '100%',
+                    background: '#161b22',
+                    color: '#38bdf8',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    borderRadius: '8px',
+                    padding: '14px',
+                    fontSize: '13px',
+                    fontFamily: "'JetBrains Mono', monospace",
+                    lineHeight: '1.6',
+                    outline: 'none',
+                    resize: 'none'
+                  }}
+                />
+              )}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px' }}>
+              <button onClick={() => setEditingEntry(null)} className="btn btn-ghost" style={{ fontSize: '12px' }}>
+                Ghairi
+              </button>
+              <button
+                onClick={handleSaveEditedText}
+                disabled={savingText}
+                className="btn btn-primary"
+                style={{ fontSize: '12px', background: 'linear-gradient(135deg, #06b6d4, #0891b2)' }}
+              >
+                <Save size={15} />
+                <span>{savingText ? 'Inahifadhi...' : 'Hifadhi Mabadiliko Ndani ya Zip'}</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Footer Action */}
         <div className="modal-footer">
