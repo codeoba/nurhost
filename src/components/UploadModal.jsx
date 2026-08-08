@@ -32,8 +32,9 @@ export default function UploadModal({ onClose, onUploadComplete }) {
       id: `upload-${Date.now()}-${i}`,
       name: f.name,
       size: f.size,
-      sizeFormatted: `${(f.size / (1024 * 1024)).toFixed(1)} MB`,
-      progress: 15,
+      sizeFormatted: f.size >= 1024 * 1024 ? `${(f.size / (1024 * 1024)).toFixed(1)} MB` : `${(f.size / 1024).toFixed(1)} KB`,
+      loadedBytes: 0,
+      progress: 0,
       status: 'uploading',
       fileObj: f
     }));
@@ -41,25 +42,29 @@ export default function UploadModal({ onClose, onUploadComplete }) {
     setUploadingFiles(uploadStates);
     setIsUploading(true);
 
-    let currentProgress = 15;
-    const interval = setInterval(() => {
-      currentProgress = Math.min(90, currentProgress + 15);
-      setUploadingFiles(prev =>
-        prev.map(item => ({
-          ...item,
-          progress: item.status === 'completed' ? 100 : currentProgress
-        }))
-      );
-    }, 200);
-
     const completedFiles = [];
 
     for (let i = 0; i < filesArray.length; i++) {
       const file = filesArray[i];
+      const targetStateId = uploadStates[i].id;
       let uploadedFileMeta = null;
 
       try {
-        const res = await uploadFileToBackend(file);
+        const res = await uploadFileToBackend(file, (percent, loaded, total) => {
+          setUploadingFiles(prev =>
+            prev.map(item =>
+              item.id === targetStateId
+                ? {
+                    ...item,
+                    progress: percent,
+                    loadedBytes: loaded,
+                    size: total
+                  }
+                : item
+            )
+          );
+        });
+
         if (res && res.success && res.file) {
           uploadedFileMeta = res.file;
         }
@@ -67,13 +72,16 @@ export default function UploadModal({ onClose, onUploadComplete }) {
         console.warn("Upload API warning, using local file entry fallback:", err);
       }
 
-      const fileType = detectFileType(file.name, file.type);
+      setUploadingFiles(prev =>
+        prev.map(item =>
+          item.id === targetStateId ? { ...item, progress: 100, status: 'completed' } : item
+        )
+      );
 
+      const fileType = detectFileType(file.name, file.type);
       let fileBlobUrl = '#';
       if (fileType === 'image') {
-        try {
-          fileBlobUrl = URL.createObjectURL(file);
-        } catch (e) {}
+        try { fileBlobUrl = URL.createObjectURL(file); } catch (e) {}
       }
 
       const fileUrl = uploadedFileMeta?.storagePath
@@ -86,7 +94,7 @@ export default function UploadModal({ onClose, onUploadComplete }) {
         type: fileType,
         mimeType: file.type || 'application/octet-stream',
         size: file.size,
-        sizeFormatted: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+        sizeFormatted: uploadedFileMeta?.sizeFormatted || (file.size >= 1024 * 1024 ? `${(file.size / (1024 * 1024)).toFixed(1)} MB` : `${(file.size / 1024).toFixed(1)} KB`),
         url: fileUrl,
         folderId: null,
         isStarred: false,
@@ -96,16 +104,6 @@ export default function UploadModal({ onClose, onUploadComplete }) {
         createdAt: new Date().toISOString()
       });
     }
-
-    clearInterval(interval);
-
-    setUploadingFiles(prev =>
-      prev.map(item => ({
-        ...item,
-        progress: 100,
-        status: 'completed'
-      }))
-    );
 
     setTimeout(() => {
       onUploadComplete(completedFiles);
@@ -302,40 +300,58 @@ export default function UploadModal({ onClose, onUploadComplete }) {
                     INAPAKIA MAFAILI ({uploadingFiles.length})
                   </h4>
 
-                  {uploadingFiles.map((file) => (
-                    <div key={file.id} style={{ background: 'var(--bg-tertiary)', padding: '14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                          <File size={18} color="var(--accent-primary)" />
-                          <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</span>
+                  {uploadingFiles.map((file) => {
+                    const loadedMb = (file.loadedBytes / (1024 * 1024)).toFixed(1);
+                    const totalMb = (file.size / (1024 * 1024)).toFixed(1);
+                    return (
+                      <div key={file.id} style={{ background: 'var(--bg-tertiary)', padding: '14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                            <File size={18} color="var(--accent-primary)" />
+                            <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.name}</span>
+                          </div>
+                          {file.status === 'completed' ? (
+                            <span style={{ fontSize: '12px', color: 'var(--accent-emerald)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <CheckCircle2 size={16} /> 100%
+                            </span>
+                          ) : file.status === 'error' ? (
+                            <AlertCircle size={18} color="#ef4444" />
+                          ) : (
+                            <span style={{
+                              fontSize: '12px',
+                              color: '#ffffff',
+                              background: 'linear-gradient(135deg, #6366f1, #06b6d4)',
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              fontWeight: '800',
+                              boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)'
+                            }}>
+                              {file.progress}%
+                            </span>
+                          )}
                         </div>
-                        {file.status === 'completed' ? (
-                          <CheckCircle2 size={18} color="var(--accent-emerald)" />
-                        ) : file.status === 'error' ? (
-                          <AlertCircle size={18} color="#ef4444" />
-                        ) : (
-                          <span style={{ fontSize: '12px', color: 'var(--accent-primary)', fontWeight: '700' }}>{file.progress}%</span>
-                        )}
-                      </div>
 
-                      {file.status === 'error' && (
-                        <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px' }}>
-                          ❌ {file.errorMsg || 'Imeshindwa kupakia'}
-                        </p>
-                      )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                          <span>{file.status === 'completed' ? 'Tayari Imepakiwa' : 'Inapakia kwenye Server...'}</span>
+                          <span>{file.size ? `${loadedMb} MB / ${totalMb} MB (${file.progress}%)` : `${file.progress}%`}</span>
+                        </div>
 
-                      <div style={{ height: '6px', width: '100%', background: 'var(--border-color)', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div
-                          style={{
-                            height: '100%',
-                            width: `${file.progress}%`,
-                            background: file.status === 'error' ? '#ef4444' : 'linear-gradient(90deg, var(--accent-primary), var(--accent-cyan))',
-                            transition: 'width 0.2s ease'
-                          }}
-                        />
+                        <div style={{ height: '8px', width: '100%', background: 'var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div
+                            style={{
+                              height: '100%',
+                              width: `${file.progress}%`,
+                              background: file.status === 'completed'
+                                ? 'linear-gradient(90deg, #10b981, #059669)'
+                                : 'linear-gradient(90deg, #6366f1, #06b6d4, #10b981)',
+                              borderRadius: '4px',
+                              transition: 'width 0.15s ease-out'
+                            }}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

@@ -86,22 +86,44 @@ async function safeJsonParse(res) {
   }
 }
 
-export async function uploadFileToBackend(file) {
-  try {
-    const formData = new FormData();
-    formData.append("file", file);
+export function uploadFileToBackend(file, onProgress) {
+  return new Promise((resolve) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
 
-    const res = await fetch(`${API_BASE_URL}/files/upload`, {
-      method: "POST",
-      body: formData,
-    });
-    const data = await safeJsonParse(res);
-    if (res.ok && data) return data;
-    return { success: false, error: (data && data.error) || `Server error (${res.status})` };
-  } catch (error) {
-    console.error("API error uploading file:", error);
-    return { success: false, error: error.message };
-  }
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `${API_BASE_URL}/files/upload`);
+
+      if (xhr.upload && typeof onProgress === 'function') {
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            onProgress(percent, e.loaded, e.total);
+          }
+        };
+      }
+
+      xhr.onload = () => {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300 && data) {
+            resolve(data);
+          } else {
+            resolve({ success: false, error: (data && data.error) || `Server error (${xhr.status})` });
+          }
+        } catch (e) {
+          resolve({ success: false, error: `Invalid server response (${xhr.status})` });
+        }
+      };
+
+      xhr.onerror = () => resolve({ success: false, error: "Network connection error" });
+      xhr.send(formData);
+    } catch (error) {
+      console.error("API error uploading file:", error);
+      resolve({ success: false, error: error.message });
+    }
+  });
 }
 
 export async function createShareLink(fileId, options = {}) {
