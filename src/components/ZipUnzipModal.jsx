@@ -237,7 +237,8 @@ export default function ZipUnzipModal({ isOpen, onClose, zipFile, onExtracted })
           ) : (
             entries.map((entry) => {
               const isSelected = selectedIndices.includes(entry.index);
-              const ext = (entry.name.split('.').pop() || '').toLowerCase();
+              const fullName = entry.entryName || entry.name || '';
+              const ext = fullName.includes('.') ? fullName.split('.').pop().toLowerCase() : '';
               const isEditableText = ['txt', 'nfo', 'md', 'log', 'json', 'csv', 'js', 'py', 'html', 'css', 'ini', 'conf', 'xml'].includes(ext);
 
               return (
@@ -256,7 +257,7 @@ export default function ZipUnzipModal({ isOpen, onClose, zipFile, onExtracted })
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1, marginRight: '12px' }}>
                     {!entry.isDirectory ? (
                       isSelected ? (
                         <CheckSquare size={16} color="var(--accent-primary)" />
@@ -268,11 +269,11 @@ export default function ZipUnzipModal({ isOpen, onClose, zipFile, onExtracted })
                     )}
                     <FileText size={16} color={entry.isDirectory ? 'var(--accent-amber)' : 'var(--text-secondary)'} />
                     <div style={{ minWidth: 0, flex: 1 }}>
-                      <p style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{entry.entryName}</p>
+                      <p style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fullName}</p>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
                     <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                       {entry.isDirectory ? 'Folda' : formatSize(entry.size)}
                     </span>
@@ -281,21 +282,49 @@ export default function ZipUnzipModal({ isOpen, onClose, zipFile, onExtracted })
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         {isEditableText && (
                           <button
+                            type="button"
                             onClick={(e) => handleOpenEditEntry(e, entry)}
-                            className="btn btn-ghost btn-icon"
-                            style={{ color: 'var(--accent-cyan)', padding: '4px' }}
-                            title="Edit text inside Zip"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              background: 'rgba(6, 182, 212, 0.15)',
+                              color: '#38bdf8',
+                              border: '1px solid rgba(6, 182, 212, 0.4)',
+                              borderRadius: '6px',
+                              padding: '4px 10px',
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease'
+                            }}
+                            title="Edit text content inside Zip"
                           >
-                            <Edit3 size={15} />
+                            <Edit3 size={13} />
+                            <span>Edit</span>
                           </button>
                         )}
                         <button
+                          type="button"
                           onClick={(e) => handleDeleteEntry(e, entry)}
-                          className="btn btn-ghost btn-icon"
-                          style={{ color: '#ef4444', padding: '4px' }}
-                          title="Delete file from inside Zip"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            background: 'rgba(239, 68, 68, 0.15)',
+                            color: '#f87171',
+                            border: '1px solid rgba(239, 68, 68, 0.4)',
+                            borderRadius: '6px',
+                            padding: '4px 10px',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                          title="Delete file from inside Zip archive"
                         >
-                          <Trash2 size={15} />
+                          <Trash2 size={13} />
+                          <span>Futa</span>
                         </button>
                       </div>
                     )}
